@@ -9,6 +9,8 @@ export default function SidePanel({
   onTogglePublicLands,
   showSpots,
   onToggleSpots,
+  showCellCoverage,
+  onToggleCellCoverage,
   onSearch,
   onFlyToSpot,
   onLoginClick,
@@ -52,6 +54,8 @@ export default function SidePanel({
               onTogglePublicLands={onTogglePublicLands}
               showSpots={showSpots}
               onToggleSpots={onToggleSpots}
+              showCellCoverage={showCellCoverage}
+              onToggleCellCoverage={onToggleCellCoverage}
             />
           )}
           {activePanel === 'search' && (
@@ -118,16 +122,17 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick }) {
 }
 
 // --- Layers ---
-function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots }) {
+function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage }) {
   return (
     <div className="mt-2 space-y-5">
       <div className="space-y-2">
         <Toggle label="Public Lands" checked={showPublicLands} onChange={onTogglePublicLands} color="bg-yellow-500" />
         <Toggle label="User Spots" checked={showSpots} onChange={onToggleSpots} color="bg-orange-500" />
+        <Toggle label="Cell Coverage" checked={showCellCoverage} onChange={onToggleCellCoverage} color="bg-green-500" />
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Legend</h3>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Public Lands</h3>
         <div className="space-y-1.5 text-sm">
           <LegendItem color="#e6b428" label="BLM" />
           <LegendItem color="#32a03c" label="USFS" />
@@ -142,6 +147,13 @@ function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggle
           <LegendItem color="#3b82f6" label="Recreation.gov (Federal)" circle />
           <LegendItem color="#a855f7" label="USFS Official" circle />
           <LegendItem color="#14b8a6" label="National Park (NPS)" circle />
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Cell Coverage (FCC)</h3>
+          <LegendItem color="#065220" label="5G (35/3 Mbps)" />
+          <LegendItem color="#41AB5D" label="5G (7/1 Mbps)" />
+          <LegendItem color="#74C476" label="4G LTE (5/1 Mbps)" />
+          <LegendItem color="#A1D99B" label="4G LTE (Outdoor)" />
         </div>
       </div>
     </div>

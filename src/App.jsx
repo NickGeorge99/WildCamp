@@ -14,6 +14,7 @@ export default function App() {
   const [activePanel, setActivePanel] = useState(null)
   const [showPublicLands, setShowPublicLands] = useState(true)
   const [showSpots, setShowSpots] = useState(true)
+  const [showCellCoverage, setShowCellCoverage] = useState(false)
   const [flyTo, setFlyTo] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
 
@@ -100,6 +101,8 @@ export default function App() {
         onTogglePublicLands={() => setShowPublicLands(!showPublicLands)}
         showSpots={showSpots}
         onToggleSpots={() => setShowSpots(!showSpots)}
+        showCellCoverage={showCellCoverage}
+        onToggleCellCoverage={() => setShowCellCoverage(!showCellCoverage)}
         onSearch={handleSearch}
         onFlyToSpot={handleFlyToSpot}
         onLoginClick={() => setShowAuth(true)}
@@ -113,6 +116,7 @@ export default function App() {
           onSpotClick={setSelectedSpot}
           showPublicLands={showPublicLands}
           showSpots={showSpots}
+          showCellCoverage={showCellCoverage}
           flyTo={flyTo}
         />
       </div>

@@ -17,6 +17,7 @@ export default function Map({
   onSpotClick,
   showPublicLands,
   showSpots,
+  showCellCoverage,
   flyTo,
 }) {
   const mapContainer = useRef(null)
@@ -94,6 +95,60 @@ export default function Map({
           paint: { 'raster-opacity': 0.6 },
         })
       } catch (e) { console.error('PAD-US layers failed:', e) }
+
+      // --- FCC Cell Coverage layer (H3 hexagons) ---
+      try {
+        map.addSource('cell-coverage', {
+          type: 'vector',
+          tiles: [
+            'https://vectortileservices.arcgis.com/jIL9msH9OI208GCb/arcgis/rest/services/FCC_Mobile_Broadband_Data_Collection/VectorTileServer/tile/{z}/{y}/{x}.pbf',
+          ],
+          minzoom: 0,
+          maxzoom: 12,
+        })
+
+        // 4G LTE coverage (lighter green, rendered first / below)
+        map.addLayer({
+          id: 'cell-coverage-4g',
+          type: 'fill',
+          source: 'cell-coverage',
+          'source-layer': 'FABRIC',
+          filter: ['any',
+            ['==', '_symbol', 4], // 4G LTE 5/1 In-Vehicle
+            ['==', '_symbol', 5], // 4G LTE 5/1 Outdoor
+          ],
+          paint: {
+            'fill-color': '#74C476',
+            'fill-opacity': 0.35,
+          },
+          layout: { visibility: 'none' },
+        })
+
+        // 5G NR coverage (darker green, rendered on top)
+        map.addLayer({
+          id: 'cell-coverage-5g',
+          type: 'fill',
+          source: 'cell-coverage',
+          'source-layer': 'FABRIC',
+          filter: ['any',
+            ['==', '_symbol', 0], // 5G NR 35/3 In-Vehicle
+            ['==', '_symbol', 1], // 5G NR 35/3 Outdoor
+            ['==', '_symbol', 2], // 5G NR 7/1 In-Vehicle
+            ['==', '_symbol', 3], // 5G NR 7/1 Outdoor
+          ],
+          paint: {
+            'fill-color': ['match', ['get', '_symbol'],
+              0, '#065220',
+              1, '#006D2C',
+              2, '#238B45',
+              3, '#41AB5D',
+              '#41AB5D',
+            ],
+            'fill-opacity': 0.4,
+          },
+          layout: { visibility: 'none' },
+        })
+      } catch (e) { console.error('Cell coverage layers failed:', e) }
 
       // --- User spots layer ---
       map.addSource('spots', {
@@ -335,6 +390,16 @@ export default function Map({
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
     }
   }, [showSpots])
+
+  // Toggle cell coverage
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    const vis = showCellCoverage ? 'visible' : 'none'
+    for (const id of ['cell-coverage-4g', 'cell-coverage-5g']) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
+    }
+  }, [showCellCoverage])
 
   // Fly to
   useEffect(() => {
