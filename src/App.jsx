@@ -167,41 +167,45 @@ export default function App() {
   }
 
   async function handleAddPhoto(spotId, files) {
-    if (!supabase || !user) return
+    console.log('[handleAddPhoto] called with spotId:', spotId, 'files:', files.length)
+    if (!supabase || !user) { console.log('[handleAddPhoto] no supabase or user'); return }
     const newUrls = []
     for (const file of files) {
       const ext = file.name.split('.').pop()
       const path = `spots/${spotId}/${crypto.randomUUID()}.${ext}`
+      console.log('[handleAddPhoto] uploading to:', path)
       const { error } = await supabase.storage.from('spot-images').upload(path, file, {
         cacheControl: '31536000',
         upsert: false,
       })
       if (error) {
-        console.error('Photo upload failed:', error)
+        console.error('[handleAddPhoto] upload failed:', error)
         continue
       }
       const { data } = supabase.storage.from('spot-images').getPublicUrl(path)
+      console.log('[handleAddPhoto] publicUrl:', data?.publicUrl)
       if (data?.publicUrl) newUrls.push(data.publicUrl)
     }
+    console.log('[handleAddPhoto] newUrls:', newUrls)
     if (newUrls.length > 0) {
-      // Use RPC to append photos — bypasses RLS so any user can add to public spots
       const { error } = await supabase.rpc('add_spot_photos', {
         spot_id: spotId,
         new_urls: newUrls,
       })
       if (error) {
-        console.error('add_spot_photos RPC failed:', error)
+        console.error('[handleAddPhoto] RPC failed:', error)
         return
       }
-      // Refresh the spot from DB to get canonical data
-      const { data: refreshed } = await supabase
+      console.log('[handleAddPhoto] RPC success, refreshing spot...')
+      const { data: refreshed, error: refreshErr } = await supabase
         .from('spots')
         .select('*')
         .eq('id', spotId)
         .single()
+      console.log('[handleAddPhoto] refreshed:', refreshed, 'error:', refreshErr)
       if (refreshed) {
+        console.log('[handleAddPhoto] images on refreshed spot:', refreshed.images)
         setSpots((prev) => prev.map((s) => (s.id === spotId ? refreshed : s)))
-        // Always update selectedSpot so the popup rebuilds with the new photo
         setSelectedSpot({ ...refreshed })
       }
     }
