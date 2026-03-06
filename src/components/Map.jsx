@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
-import { mapStyle, addRoadLayers } from '../lib/mapStyle'
+import { mapStyle, addRoadLayers, addTrailConditionLayers } from '../lib/mapStyle'
 import { registerMarkerImages } from '../lib/markers'
 import { fetchCampsites } from '../lib/campData'
 import { shareOrCopy } from '../lib/share'
@@ -58,6 +58,7 @@ export default function Map({
   showCellCoverage,
   showFires,
   show3DTerrain,
+  showTrailConditions,
   flyTo,
   drawMode,
   onToggleDrawMode,
@@ -350,6 +351,7 @@ export default function Map({
     map.on('load', () => {
       // Add road/place overlay from OpenFreeMap
       try { addRoadLayers(map) } catch (e) { console.error('Road layers failed:', e) }
+      try { addTrailConditionLayers(map) } catch (e) { console.error('Trail condition layers failed:', e) }
 
       // Register pin marker images
       try { registerMarkerImages(map) } catch (e) { console.error('Marker images failed:', e) }
@@ -1077,6 +1079,16 @@ export default function Map({
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
     }
   }, [showFires])
+
+  // Toggle trail conditions
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    const vis = showTrailConditions ? 'visible' : 'none'
+    for (const id of ['trail-paved', 'trail-gravel', 'trail-dirt', 'trail-rough']) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
+    }
+  }, [showTrailConditions])
 
   // Toggle 3D terrain
   useEffect(() => {

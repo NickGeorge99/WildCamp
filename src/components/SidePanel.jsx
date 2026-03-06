@@ -17,6 +17,8 @@ export default function SidePanel({
   onToggleFires,
   show3DTerrain,
   onToggle3DTerrain,
+  showTrailConditions,
+  onToggleTrailConditions,
   onSearch,
   onFlyToSpot,
   onLoginClick,
@@ -67,6 +69,8 @@ export default function SidePanel({
               onToggleFires={onToggleFires}
               show3DTerrain={show3DTerrain}
               onToggle3DTerrain={onToggle3DTerrain}
+              showTrailConditions={showTrailConditions}
+              onToggleTrailConditions={onToggleTrailConditions}
             />
           )}
           {activePanel === 'search' && (
@@ -220,7 +224,7 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick, onDelete }) {
 }
 
 // --- Layers ---
-function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage, showFires, onToggleFires, show3DTerrain, onToggle3DTerrain }) {
+function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage, showFires, onToggleFires, show3DTerrain, onToggle3DTerrain, showTrailConditions, onToggleTrailConditions }) {
   return (
     <div className="mt-1 space-y-1.5">
       <LayerCard
@@ -295,6 +299,22 @@ function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggle
         color="bg-emerald-500"
         icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2 22L8.5 9l4.5 8 3-4 6 9H2z" /></svg>}
       />
+
+      <LayerCard
+        label="Road Conditions"
+        desc="Off-road track surface quality"
+        checked={showTrailConditions}
+        onChange={onToggleTrailConditions}
+        color="bg-yellow-500"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg>}
+      >
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <LegendItem color="#22c55e" label="Paved" />
+          <LegendItem color="#eab308" label="Gravel" />
+          <LegendItem color="#f97316" label="Dirt" />
+          <LegendItem color="#ef4444" label="Rough/Unknown" />
+        </div>
+      </LayerCard>
     </div>
   )
 }

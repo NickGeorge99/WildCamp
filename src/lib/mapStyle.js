@@ -165,3 +165,71 @@ export function addRoadLayers(map) {
     },
   })
 }
+
+// Trail condition layers color-coded by surface type (hidden by default)
+export function addTrailConditionLayers(map) {
+  const trailClassFilter = ['in', 'class', 'track', 'path']
+  const lineWidth = ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 3]
+  const layout = { 'line-cap': 'round', 'line-join': 'round', visibility: 'none' }
+
+  // Paved trails (green)
+  map.addLayer({
+    id: 'trail-paved',
+    type: 'line',
+    source: 'openfree',
+    'source-layer': 'transportation',
+    minzoom: 10,
+    filter: ['all', trailClassFilter, ['in', 'surface', 'paved', 'asphalt', 'concrete']],
+    paint: { 'line-color': '#22c55e', 'line-width': lineWidth },
+    layout,
+  })
+
+  // Gravel trails (yellow)
+  map.addLayer({
+    id: 'trail-gravel',
+    type: 'line',
+    source: 'openfree',
+    'source-layer': 'transportation',
+    minzoom: 10,
+    filter: ['all', trailClassFilter, ['in', 'surface', 'gravel', 'fine_gravel', 'compacted']],
+    paint: { 'line-color': '#eab308', 'line-width': lineWidth },
+    layout,
+  })
+
+  // Dirt trails (orange)
+  map.addLayer({
+    id: 'trail-dirt',
+    type: 'line',
+    source: 'openfree',
+    'source-layer': 'transportation',
+    minzoom: 10,
+    filter: ['all', trailClassFilter, ['in', 'surface', 'unpaved', 'dirt', 'ground', 'earth']],
+    paint: { 'line-color': '#f97316', 'line-width': lineWidth },
+    layout,
+  })
+
+  // Rough/unknown surface trails (red)
+  map.addLayer({
+    id: 'trail-rough',
+    type: 'line',
+    source: 'openfree',
+    'source-layer': 'transportation',
+    minzoom: 10,
+    filter: [
+      'all',
+      trailClassFilter,
+      [
+        '!',
+        [
+          'in',
+          'surface',
+          'paved', 'asphalt', 'concrete',
+          'gravel', 'fine_gravel', 'compacted',
+          'unpaved', 'dirt', 'ground', 'earth',
+        ],
+      ],
+    ],
+    paint: { 'line-color': '#ef4444', 'line-width': lineWidth },
+    layout,
+  })
+}

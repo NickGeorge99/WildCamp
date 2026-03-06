@@ -19,6 +19,7 @@ export default function App() {
   const [showCellCoverage, setShowCellCoverage] = useState(false)
   const [showFires, setShowFires] = useState(true)
   const [show3DTerrain, setShow3DTerrain] = useState(false)
+  const [showTrailConditions, setShowTrailConditions] = useState(false)
   const [flyTo, setFlyTo] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
@@ -267,6 +268,8 @@ export default function App() {
         onToggleFires={() => setShowFires(!showFires)}
         show3DTerrain={show3DTerrain}
         onToggle3DTerrain={() => setShow3DTerrain(!show3DTerrain)}
+        showTrailConditions={showTrailConditions}
+        onToggleTrailConditions={() => setShowTrailConditions(!showTrailConditions)}
         onSearch={handleSearch}
         onFlyToSpot={handleFlyToSpot}
         onLoginClick={() => setShowAuth(true)}
@@ -284,6 +287,7 @@ export default function App() {
           showCellCoverage={showCellCoverage}
           showFires={showFires}
           show3DTerrain={show3DTerrain}
+          showTrailConditions={showTrailConditions}
           flyTo={flyTo}
           drawMode={drawMode}
           onToggleDrawMode={() => {
