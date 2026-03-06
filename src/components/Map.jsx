@@ -192,7 +192,6 @@ export default function Map({
 
     let spotId = photoSpotIdRef.current
     const pendingProps = pendingPhotoPropsRef.current
-    console.log('[handlePhotoInput] spotId:', spotId, 'pendingProps:', !!pendingProps, 'files:', files.length)
 
     // If it's an external campsite, save it first to get a spot id
     if (!spotId && pendingProps) {
@@ -203,22 +202,14 @@ export default function Map({
         lat: pendingProps.lat,
         lng: pendingProps.lng,
       })
-      console.log('[handlePhotoInput] saved external, got spotId:', spotId)
     }
 
     if (spotId && onAddPhotoRef.current) {
-      console.log('[handlePhotoInput] calling onAddPhoto with spotId:', spotId)
       await onAddPhotoRef.current(spotId, files)
-      console.log('[handlePhotoInput] onAddPhoto completed')
-    } else {
-      console.error('[handlePhotoInput] SKIPPED upload! spotId:', spotId, 'onAddPhotoRef:', !!onAddPhotoRef.current)
     }
 
     if (btn) {
-      const ok = !!spotId
-      btn.innerHTML = ok
-        ? `<span style="color:#22c55e;font-size:12px;font-weight:600">Added!</span>`
-        : `<span style="color:#ef4444;font-size:12px;font-weight:600">Failed</span>`
+      btn.innerHTML = `<span style="color:#22c55e;font-size:12px;font-weight:600">Added!</span>`
       setTimeout(() => {
         btn.innerHTML = `${ICON.camera}<span>Add Photo</span>`
         btn.style.opacity = ''

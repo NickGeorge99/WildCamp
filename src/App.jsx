@@ -167,48 +167,63 @@ export default function App() {
   }
 
   async function handleAddPhoto(spotId, files) {
-    console.log('[handleAddPhoto] called with spotId:', spotId, 'files:', files.length)
-    if (!supabase || !user) { console.log('[handleAddPhoto] no supabase or user'); return }
+    if (!supabase || !user) return
     const newUrls = []
     for (const file of files) {
-      const ext = file.name.split('.').pop()
-      const path = `spots/${spotId}/${crypto.randomUUID()}.${ext}`
-      console.log('[handleAddPhoto] uploading to:', path)
-      const { error } = await supabase.storage.from('spot-images').upload(path, file, {
+      const compressed = await compressImage(file)
+      const path = `spots/${spotId}/${crypto.randomUUID()}.jpg`
+      const { error } = await supabase.storage.from('spot-images').upload(path, compressed, {
         cacheControl: '31536000',
+        contentType: 'image/jpeg',
         upsert: false,
       })
       if (error) {
-        console.error('[handleAddPhoto] upload failed:', error)
+        console.error('Photo upload failed:', error)
         continue
       }
       const { data } = supabase.storage.from('spot-images').getPublicUrl(path)
-      console.log('[handleAddPhoto] publicUrl:', data?.publicUrl)
       if (data?.publicUrl) newUrls.push(data.publicUrl)
     }
-    console.log('[handleAddPhoto] newUrls:', newUrls)
     if (newUrls.length > 0) {
       const { error } = await supabase.rpc('add_spot_photos', {
         spot_id: spotId,
         new_urls: newUrls,
       })
       if (error) {
-        console.error('[handleAddPhoto] RPC failed:', error)
+        console.error('add_spot_photos RPC failed:', error)
         return
       }
-      console.log('[handleAddPhoto] RPC success, refreshing spot...')
-      const { data: refreshed, error: refreshErr } = await supabase
+      const { data: refreshed } = await supabase
         .from('spots')
         .select('*')
         .eq('id', spotId)
         .single()
-      console.log('[handleAddPhoto] refreshed:', refreshed, 'error:', refreshErr)
       if (refreshed) {
-        console.log('[handleAddPhoto] images on refreshed spot:', refreshed.images)
         setSpots((prev) => prev.map((s) => (s.id === spotId ? refreshed : s)))
         setSelectedSpot({ ...refreshed })
       }
     }
+  }
+
+  function compressImage(file, maxDim = 1920, quality = 0.8) {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality)
+        URL.revokeObjectURL(img.src)
+      }
+      img.src = URL.createObjectURL(file)
+    })
   }
 
   async function handleLogout() {
