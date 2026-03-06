@@ -842,19 +842,25 @@ export default function Map({
       const lng = lngLat.lng
       const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
 
-      // Show immediately with coords, then update with place name
+      // Render immediately with skeleton placeholders, then fill in async data
       popupRef.current = new maplibregl.Popup({
         closeButton: true,
-        maxWidth: '300px',
+        maxWidth: '340px',
         className: 'wildcamp-popup',
       })
         .setLngLat(lngLat)
         .setHTML(
           `<div class="wc-popup">
-            <div class="wc-popup-name" id="wc-location-name">Loading...</div>
-            <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
-            <div class="wc-popup-actions">
-              <a href="${getNavUrl(lat, lng)}" target="_blank" rel="noopener" class="wc-btn wc-btn-nav">${ICON.navigate}<span>Navigate</span></a>
+            <div class="wc-popup-body">
+              <div class="wc-popup-tags">
+                <span class="wc-tag wc-tag-location">Location</span>
+              </div>
+              <div class="wc-popup-name" id="wc-location-name">Loading&hellip;</div>
+              <div class="wc-popup-meta" id="wc-location-meta" style="visibility:hidden">
+                ${ICON.pin}<span id="wc-location-region">&nbsp;</span>
+              </div>
+              <div id="wc-coords" class="wc-popup-coords">${ICON.pinSmall}<span>${coords}</span>${ICON.copy}</div>
+              <a href="${getNavUrl(lat, lng)}" target="_blank" rel="noopener" class="wc-btn-navigate">${ICON.navigate}<span>Navigate</span></a>
             </div>
           </div>`
         )
@@ -865,27 +871,55 @@ export default function Map({
       const coordsEl = el.querySelector('#wc-coords')
       if (coordsEl) coordsEl.addEventListener('click', () => copyToClipboard(coords, coordsEl))
 
-      // Reverse geocode
-      try {
-        const res = await fetch(
+      // Fetch reverse geocode + elevation in parallel
+      const [geoData, elevData] = await Promise.allSettled([
+        fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14`,
-          { signal: AbortSignal.timeout(5000) }
-        )
-        const data = await res.json()
-        const nameEl = popupRef.current?.getElement()?.querySelector('#wc-location-name')
-        if (nameEl && data.display_name) {
-          // Build a short, useful name from address parts
-          const a = data.address || {}
-          const parts = [
-            a.tourism || a.natural || a.leisure || a.park || a.national_park || '',
-            a.city || a.town || a.village || a.hamlet || a.county || '',
-            a.state || '',
-          ].filter(Boolean)
-          nameEl.textContent = parts.length > 0 ? parts.join(', ') : data.display_name.split(',').slice(0, 3).join(',')
+          { signal: AbortSignal.timeout(6000) }
+        ).then((r) => r.json()),
+        fetch(
+          `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`,
+          { signal: AbortSignal.timeout(6000) }
+        ).then((r) => r.json()),
+      ])
+
+      // --- Place name ---
+      const nameEl = popupRef.current?.getElement()?.querySelector('#wc-location-name')
+      if (nameEl) {
+        if (geoData.status === 'fulfilled' && geoData.value?.display_name) {
+          const a = geoData.value.address || {}
+          // Primary name: most specific natural/place feature available
+          const primary =
+            a.tourism || a.natural || a.leisure || a.park || a.national_park ||
+            a.amenity || a.hamlet || a.village || a.town || a.city ||
+            a.county || null
+          nameEl.textContent = primary
+            ? primary
+            : geoData.value.display_name.split(',')[0].trim()
+        } else {
+          nameEl.textContent = 'Unknown location'
         }
-      } catch {
-        const nameEl = popupRef.current?.getElement()?.querySelector('#wc-location-name')
-        if (nameEl) nameEl.textContent = 'Unknown location'
+      }
+
+      // --- Region meta line (county · state  +  elevation) ---
+      const metaEl = popupRef.current?.getElement()?.querySelector('#wc-location-meta')
+      const regionEl = popupRef.current?.getElement()?.querySelector('#wc-location-region')
+      if (metaEl && regionEl) {
+        const parts = []
+        if (geoData.status === 'fulfilled') {
+          const a = geoData.value?.address || {}
+          if (a.county) parts.push(a.county)
+          if (a.state) parts.push(a.state)
+        }
+        const elevVal = elevData.status === 'fulfilled' ? elevData.value?.elevation?.[0] : null
+        if (elevVal != null) {
+          const ft = Math.round(elevVal * 3.28084)
+          parts.push(`${ft.toLocaleString()} ft`)
+        }
+        if (parts.length > 0) {
+          regionEl.textContent = parts.join(' · ')
+          metaEl.style.visibility = 'visible'
+        }
       }
     }
 
