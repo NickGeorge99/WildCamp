@@ -2,15 +2,79 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <title>WildCamp — Free Camping & Dispersed Campsite Map</title>
+    <meta name="description" content="Find free campsites, dispersed camping spots, and public lands (BLM, USFS, NPS) across the US. Interactive satellite map with data from OSM, Recreation.gov, USFS, and NPS." />
+    <link rel="canonical" href="https://wildcamp.nickwontquit.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://wildcamp.nickwontquit.com/" />
+    <meta property="og:title" content="WildCamp — Free Camping & Dispersed Campsite Map" />
+    <meta property="og:description" content="Find free campsites, dispersed camping spots, and public lands (BLM, USFS, NPS) across the US. Interactive satellite map with thousands of campsite locations." />
+    <meta property="og:image" content="https://wildcamp.nickwontquit.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="WildCamp" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="WildCamp — Free Camping & Dispersed Campsite Map" />
+    <meta name="twitter:description" content="Find free campsites, dispersed camping spots, and public lands across the US. Interactive satellite map." />
+    <meta name="twitter:image" content="https://wildcamp.nickwontquit.com/og-image.png" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- PWA / Mobile -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WildCamp" />
     <meta name="theme-color" content="#111827" />
-    <meta name="description" content="Find free campsites, dispersed camping, and public lands across the US" />
-    <title>WildCamp — Free Camping Map</title>
+    <meta name="application-name" content="WildCamp" />
+
+    <!-- SEO extras -->
+    <meta name="robots" content="index, follow" />
+    <meta name="keywords" content="free camping, dispersed camping, boondocking, BLM land, public lands, campsite map, USFS camping, national forest camping, national park campgrounds, overlanding, car camping, wild camping USA" />
+    <meta name="author" content="WildCamp" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "WildCamp",
+      "url": "https://wildcamp.nickwontquit.com",
+      "description": "Interactive satellite map for finding free campsites, dispersed camping, and public lands across the United States.",
+      "applicationCategory": "TravelApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Satellite basemap with road overlay",
+        "BLM, USFS, NPS, FWS public land boundaries",
+        "Free campsites from OpenStreetMap",
+        "Federal campsites from Recreation.gov",
+        "USFS official campgrounds",
+        "National Park campgrounds",
+        "Save personal waypoints",
+        "Search any US location"
+      ]
+    }
+    </script>
   </head>
   <body>
+    <noscript>
+      <h1>WildCamp — Free Camping Map</h1>
+      <p>Find free campsites, dispersed camping spots, and public lands (BLM, USFS, NPS) across the United States. WildCamp is an interactive satellite map that aggregates campsite data from OpenStreetMap, Recreation.gov, USFS, and the National Park Service.</p>
+      <p>Please enable JavaScript to use the interactive map.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
