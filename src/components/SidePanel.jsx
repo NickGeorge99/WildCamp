@@ -11,6 +11,8 @@ export default function SidePanel({
   onToggleSpots,
   showCellCoverage,
   onToggleCellCoverage,
+  showFires,
+  onToggleFires,
   onSearch,
   onFlyToSpot,
   onLoginClick,
@@ -56,6 +58,8 @@ export default function SidePanel({
               onToggleSpots={onToggleSpots}
               showCellCoverage={showCellCoverage}
               onToggleCellCoverage={onToggleCellCoverage}
+              showFires={showFires}
+              onToggleFires={onToggleFires}
             />
           )}
           {activePanel === 'search' && (
@@ -122,13 +126,14 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick }) {
 }
 
 // --- Layers ---
-function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage }) {
+function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage, showFires, onToggleFires }) {
   return (
     <div className="mt-2 space-y-5">
       <div className="space-y-2">
         <Toggle label="Public Lands" checked={showPublicLands} onChange={onTogglePublicLands} color="bg-yellow-500" />
         <Toggle label="User Spots" checked={showSpots} onChange={onToggleSpots} color="bg-orange-500" />
-        <Toggle label="Cell Coverage" checked={showCellCoverage} onChange={onToggleCellCoverage} color="bg-green-500" />
+        <Toggle label="Cell Coverage" checked={showCellCoverage} onChange={onToggleCellCoverage} color="bg-blue-500" />
+        <Toggle label="Active Fires" checked={showFires} onChange={onToggleFires} color="bg-red-500" />
       </div>
 
       <div>
@@ -153,6 +158,11 @@ function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggle
           <LegendItem color="#1e40af" label="5G (35/3 Mbps)" />
           <LegendItem color="#60a5fa" label="5G (7/1 Mbps)" />
           <LegendItem color="#5eead4" label="4G LTE" />
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Wildfires (NIFC)</h3>
+          <LegendItem color="#ef4444" label="Fire Perimeter" />
+          <LegendItem color="#f97316" label="Fire Incident" circle />
         </div>
       </div>
     </div>

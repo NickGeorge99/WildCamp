@@ -10,6 +10,10 @@ const PAD_US_EXPORT = 'https://edits.nationalmap.gov/arcgis/rest/services/PAD-US
 const SOURCE_COLORS = { osm: '#22c55e', ridb: '#3b82f6', user: '#f97316', usfs: '#a855f7', nps: '#14b8a6' }
 const SOURCE_LABELS = { osm: 'OSM Community', ridb: 'Recreation.gov', user: 'User Submitted', usfs: 'USFS Official', nps: 'National Park' }
 
+// NIFC active wildfire endpoints
+const FIRE_PERIMETERS_URL = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query'
+const FIRE_POINTS_URL = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query'
+
 export default function Map({
   spots,
   onMapClick,
@@ -18,6 +22,7 @@ export default function Map({
   showPublicLands,
   showSpots,
   showCellCoverage,
+  showFires,
   flyTo,
 }) {
   const mapContainer = useRef(null)
@@ -149,6 +154,107 @@ export default function Map({
           layout: { visibility: 'none' },
         })
       } catch (e) { console.error('Cell coverage layers failed:', e) }
+
+      // --- Active Wildfires (NIFC) ---
+      try {
+        map.addSource('fire-perimeters', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        })
+        map.addSource('fire-points', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        })
+
+        // Fire perimeter fills
+        map.addLayer({
+          id: 'fire-perimeters-fill',
+          type: 'fill',
+          source: 'fire-perimeters',
+          paint: {
+            'fill-color': '#ef4444',
+            'fill-opacity': 0.25,
+          },
+          layout: { visibility: 'none' },
+        })
+        // Fire perimeter outlines
+        map.addLayer({
+          id: 'fire-perimeters-line',
+          type: 'line',
+          source: 'fire-perimeters',
+          paint: {
+            'line-color': '#dc2626',
+            'line-width': 2,
+          },
+          layout: { visibility: 'none' },
+        })
+        // Fire incident points
+        map.addLayer({
+          id: 'fire-points-layer',
+          type: 'circle',
+          source: 'fire-points',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 10, 8],
+            'circle-color': '#f97316',
+            'circle-stroke-color': '#dc2626',
+            'circle-stroke-width': 2,
+            'circle-opacity': 0.9,
+          },
+          layout: { visibility: 'none' },
+        })
+        // Fire labels
+        map.addLayer({
+          id: 'fire-labels',
+          type: 'symbol',
+          source: 'fire-points',
+          layout: {
+            'text-field': ['get', 'name'],
+            'text-size': 11,
+            'text-offset': [0, 1.2],
+            'text-anchor': 'top',
+            'text-optional': true,
+            visibility: 'none',
+          },
+          paint: {
+            'text-color': '#fca5a5',
+            'text-halo-color': 'rgba(0,0,0,0.8)',
+            'text-halo-width': 1.5,
+          },
+        })
+
+        // Click fire points for info
+        map.on('click', 'fire-points-layer', (e) => {
+          if (e.features.length > 0) {
+            const props = e.features[0].properties
+            const acres = props.acres ? `${Number(props.acres).toLocaleString()} acres` : 'Size unknown'
+            const contained = props.contained != null ? `${props.contained}% contained` : ''
+            if (popupRef.current) popupRef.current.remove()
+            popupRef.current = new maplibregl.Popup({
+              closeButton: true,
+              maxWidth: '280px',
+              className: 'wildcamp-popup',
+            })
+              .setLngLat(e.lngLat)
+              .setHTML(
+                `<div style="padding:8px">
+                  <strong style="font-size:14px;color:#fca5a5">${props.name || 'Unknown Fire'}</strong>
+                  <div style="margin-top:4px;display:flex;gap:8px;align-items:center;font-size:12px">
+                    <span style="background:#dc2626;color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">Active Fire</span>
+                    <span style="color:#9ca3af">${acres}</span>
+                  </div>
+                  ${contained ? `<div style="margin-top:4px;font-size:12px;color:#9ca3af">${contained}</div>` : ''}
+                </div>`
+              )
+              .addTo(map)
+            e.preventDefault()
+          }
+        })
+        map.on('mouseenter', 'fire-points-layer', () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', 'fire-points-layer', () => { map.getCanvas().style.cursor = '' })
+
+        // Fetch fire data
+        fetchFireData(map)
+      } catch (e) { console.error('Fire layers failed:', e) }
 
       // --- User spots layer ---
       map.addSource('spots', {
@@ -361,6 +467,72 @@ export default function Map({
         .addTo(m)
     }
 
+    // Fetch active wildfire data from NIFC
+    async function fetchFireData(m) {
+      try {
+        const params = new URLSearchParams({
+          where: '1=1',
+          outFields: 'IncidentName,DailyAcres,PercentContained',
+          outSR: '4326',
+          f: 'json',
+          resultRecordCount: '2000',
+        })
+
+        const [pointsRes, perimsRes] = await Promise.all([
+          fetch(`${FIRE_POINTS_URL}?${params}`).then((r) => r.json()).catch(() => null),
+          fetch(`${FIRE_PERIMETERS_URL}?${params}`).then((r) => r.json()).catch(() => null),
+        ])
+
+        // Fire incident points
+        if (pointsRes?.features) {
+          const geojson = {
+            type: 'FeatureCollection',
+            features: pointsRes.features
+              .filter((f) => f.geometry)
+              .map((f) => ({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [f.geometry.x, f.geometry.y] },
+                properties: {
+                  name: f.attributes.IncidentName || 'Unknown',
+                  acres: f.attributes.DailyAcres,
+                  contained: f.attributes.PercentContained,
+                },
+              })),
+          }
+          const src = m.getSource('fire-points')
+          if (src) src.setData(geojson)
+          console.log(`[fires] ${geojson.features.length} incident points loaded`)
+        }
+
+        // Fire perimeters
+        if (perimsRes?.features) {
+          const geojson = {
+            type: 'FeatureCollection',
+            features: perimsRes.features
+              .filter((f) => f.geometry?.rings)
+              .map((f) => ({
+                type: 'Feature',
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: f.geometry.rings.map((ring) =>
+                    ring.map((c) => [c[0], c[1]])
+                  ),
+                },
+                properties: {
+                  name: f.attributes.IncidentName || 'Unknown',
+                  acres: f.attributes.DailyAcres || f.attributes.GISAcres,
+                },
+              })),
+          }
+          const src = m.getSource('fire-perimeters')
+          if (src) src.setData(geojson)
+          console.log(`[fires] ${geojson.features.length} perimeters loaded`)
+        }
+      } catch (e) {
+        console.error('Fire data fetch failed:', e)
+      }
+    }
+
     mapRef.current = map
     return () => map.remove()
   }, [])
@@ -400,6 +572,16 @@ export default function Map({
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
     }
   }, [showCellCoverage])
+
+  // Toggle fires
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    const vis = showFires ? 'visible' : 'none'
+    for (const id of ['fire-perimeters-fill', 'fire-perimeters-line', 'fire-points-layer', 'fire-labels']) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
+    }
+  }, [showFires])
 
   // Fly to
   useEffect(() => {
