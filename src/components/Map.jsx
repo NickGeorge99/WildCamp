@@ -107,7 +107,7 @@ export default function Map({
           maxzoom: 12,
         })
 
-        // 4G LTE coverage (lighter green, rendered first / below)
+        // 4G LTE coverage (teal, rendered first / below)
         map.addLayer({
           id: 'cell-coverage-4g',
           type: 'fill',
@@ -118,13 +118,13 @@ export default function Map({
             ['==', '_symbol', 5], // 4G LTE 5/1 Outdoor
           ],
           paint: {
-            'fill-color': '#74C476',
-            'fill-opacity': 0.35,
+            'fill-color': '#5eead4',
+            'fill-opacity': 0.3,
           },
           layout: { visibility: 'none' },
         })
 
-        // 5G NR coverage (darker green, rendered on top)
+        // 5G NR coverage (blue, rendered on top)
         map.addLayer({
           id: 'cell-coverage-5g',
           type: 'fill',
@@ -138,11 +138,11 @@ export default function Map({
           ],
           paint: {
             'fill-color': ['match', ['get', '_symbol'],
-              0, '#065220',
-              1, '#006D2C',
-              2, '#238B45',
-              3, '#41AB5D',
-              '#41AB5D',
+              0, '#1e40af',
+              1, '#2563eb',
+              2, '#3b82f6',
+              3, '#60a5fa',
+              '#3b82f6',
             ],
             'fill-opacity': 0.4,
           },

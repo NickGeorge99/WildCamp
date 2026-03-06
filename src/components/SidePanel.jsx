@@ -150,10 +150,9 @@ function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggle
         </div>
         <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Cell Coverage (FCC)</h3>
-          <LegendItem color="#065220" label="5G (35/3 Mbps)" />
-          <LegendItem color="#41AB5D" label="5G (7/1 Mbps)" />
-          <LegendItem color="#74C476" label="4G LTE (5/1 Mbps)" />
-          <LegendItem color="#A1D99B" label="4G LTE (Outdoor)" />
+          <LegendItem color="#1e40af" label="5G (35/3 Mbps)" />
+          <LegendItem color="#60a5fa" label="5G (7/1 Mbps)" />
+          <LegendItem color="#5eead4" label="4G LTE" />
         </div>
       </div>
     </div>
