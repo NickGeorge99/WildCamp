@@ -148,6 +148,24 @@ export default function App() {
     setEditingSpot(null)
   }
 
+  async function handleRemovePhoto(spotId, photoUrl) {
+    if (!supabase || !user) return
+    const { error } = await supabase.rpc('remove_spot_photo', {
+      spot_id: spotId,
+      photo_url: photoUrl,
+    })
+    if (error) {
+      console.error('remove_spot_photo RPC failed:', error)
+      return
+    }
+    const spot = spots.find((s) => s.id === spotId)
+    if (spot) {
+      const updatedSpot = { ...spot, images: (spot.images || []).filter((u) => u !== photoUrl) }
+      setSpots((prev) => prev.map((s) => (s.id === spotId ? updatedSpot : s)))
+      if (selectedSpot?.id === spotId) setSelectedSpot(updatedSpot)
+    }
+  }
+
   async function handleAddPhoto(spotId, files) {
     if (!supabase || !user) return
     const newUrls = []
@@ -247,9 +265,9 @@ export default function App() {
             if (!user) { setShowAuth(true); return }
             setDrawMode(!drawMode)
           }}
-          onSaveSpot={handleSaveExisting}
           onEditSpot={setEditingSpot}
           onAddPhoto={handleAddPhoto}
+          onRemovePhoto={handleRemovePhoto}
           onSaveAndGetId={handleSaveAndGetId}
           onViewPhotos={setViewingPhotos}
           user={user}

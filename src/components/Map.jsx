@@ -55,9 +55,9 @@ export default function Map({
   flyTo,
   drawMode,
   onToggleDrawMode,
-  onSaveSpot,
   onEditSpot,
   onAddPhoto,
+  onRemovePhoto,
   onSaveAndGetId,
   onViewPhotos,
   user,
@@ -71,9 +71,9 @@ export default function Map({
   const lastExternalSitesRef = useRef([])
   const onMapClickRef = useRef(onMapClick)
   const drawModeRef = useRef(drawMode)
-  const onSaveSpotRef = useRef(onSaveSpot)
   const onEditSpotRef = useRef(onEditSpot)
   const onAddPhotoRef = useRef(onAddPhoto)
+  const onRemovePhotoRef = useRef(onRemovePhoto)
   const onSaveAndGetIdRef = useRef(onSaveAndGetId)
   const onViewPhotosRef = useRef(onViewPhotos)
   const userRef = useRef(user)
@@ -81,9 +81,9 @@ export default function Map({
 
   useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
   useEffect(() => { drawModeRef.current = drawMode }, [drawMode])
-  useEffect(() => { onSaveSpotRef.current = onSaveSpot }, [onSaveSpot])
   useEffect(() => { onEditSpotRef.current = onEditSpot }, [onEditSpot])
   useEffect(() => { onAddPhotoRef.current = onAddPhoto }, [onAddPhoto])
+  useEffect(() => { onRemovePhotoRef.current = onRemovePhoto }, [onRemovePhoto])
   useEffect(() => { onSaveAndGetIdRef.current = onSaveAndGetId }, [onSaveAndGetId])
   useEffect(() => { onViewPhotosRef.current = onViewPhotos }, [onViewPhotos])
   useEffect(() => { userRef.current = user }, [user])
@@ -97,8 +97,10 @@ export default function Map({
 
     const saveBtn = el.querySelector('#wc-save-spot')
     if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        onSaveSpotRef.current({
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.innerHTML = 'Saving...'
+        saveBtn.disabled = true
+        const newId = await onSaveAndGetIdRef.current({
           name: props.name,
           notes: props.notes || '',
           vehicle_type: 'any',
@@ -107,7 +109,11 @@ export default function Map({
         })
         saveBtn.innerHTML = '✓ Saved!'
         saveBtn.classList.add('wc-btn-saved')
-        saveBtn.disabled = true
+        // Store the new ID so Add Photo can use it directly
+        if (newId) {
+          props.id = newId
+          props.source = 'user'
+        }
       })
     }
 
@@ -141,6 +147,21 @@ export default function Map({
         })
       })
     }
+
+    // Remove photo buttons (owner only)
+    const removeBtns = el.querySelectorAll('.wc-img-remove')
+    removeBtns.forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.stopPropagation()
+        const url = btn.dataset.photoUrl
+        if (!url || !props.id) return
+        btn.textContent = '...'
+        await onRemovePhotoRef.current(props.id, url)
+        // Remove the image element from the popup
+        const wrap = btn.closest('.wc-popup-img-wrap')
+        if (wrap) wrap.remove()
+      })
+    })
 
     const addPhotoEl = el.querySelector('#wc-add-photo')
     if (addPhotoEl) {
@@ -630,13 +651,14 @@ export default function Map({
       map.on('click', 'external-camps-layer', (e) => {
         if (e.features.length > 0) {
           const props = e.features[0].properties
-          showPopup(map, e.lngLat, {
+          const [fLng, fLat] = e.features[0].geometry.coordinates
+          showPopup(map, [fLng, fLat], {
             name: props.name,
             source: props.source,
             category: props.category,
             notes: props.notes,
-            lat: e.lngLat.lat,
-            lng: e.lngLat.lng,
+            lat: fLat,
+            lng: fLng,
           })
           e.preventDefault()
         }
@@ -733,7 +755,12 @@ export default function Map({
         : ''
 
       const imgHtml = props.images && props.images.length > 0
-        ? `<div class="wc-popup-images">${props.images.map((u, i) => `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />`).join('')}</div>`
+        ? `<div class="wc-popup-images">${props.images.map((u, i) =>
+            `<div class="wc-popup-img-wrap">` +
+              `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />` +
+              (isOwner ? `<button class="wc-img-remove" data-photo-url="${u}" title="Remove photo">&times;</button>` : '') +
+            `</div>`
+          ).join('')}</div>`
         : ''
 
       popupRef.current = new maplibregl.Popup({
@@ -1062,7 +1089,12 @@ export default function Map({
 
     const spotImages = selectedSpot.images || []
     const imgHtml = spotImages.length > 0
-      ? `<div class="wc-popup-images">${spotImages.map((u, i) => `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />`).join('')}</div>`
+      ? `<div class="wc-popup-images">${spotImages.map((u, i) =>
+          `<div class="wc-popup-img-wrap">` +
+            `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />` +
+            (isOwner ? `<button class="wc-img-remove" data-photo-url="${u}" title="Remove photo">&times;</button>` : '') +
+          `</div>`
+        ).join('')}</div>`
       : ''
 
     popupRef.current = new maplibregl.Popup({
