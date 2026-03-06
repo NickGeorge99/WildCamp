@@ -193,12 +193,16 @@ export default function App() {
         console.error('add_spot_photos RPC failed:', error)
         return
       }
-      // Refresh the spot locally
-      const spot = spots.find((s) => s.id === spotId)
-      const updatedImages = [...(spot?.images || []), ...newUrls]
-      const updatedSpot = { ...spot, images: updatedImages }
-      setSpots((prev) => prev.map((s) => (s.id === spotId ? updatedSpot : s)))
-      if (selectedSpot?.id === spotId) setSelectedSpot(updatedSpot)
+      // Refresh the spot from DB to get canonical data
+      const { data: refreshed } = await supabase
+        .from('spots')
+        .select('*')
+        .eq('id', spotId)
+        .single()
+      if (refreshed) {
+        setSpots((prev) => prev.map((s) => (s.id === spotId ? refreshed : s)))
+        if (selectedSpot?.id === spotId) setSelectedSpot({ ...refreshed })
+      }
     }
   }
 

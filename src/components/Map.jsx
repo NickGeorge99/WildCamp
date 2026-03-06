@@ -166,8 +166,8 @@ export default function Map({
     const addPhotoEl = el.querySelector('#wc-add-photo')
     if (addPhotoEl) {
       addPhotoEl.addEventListener('click', () => {
-        if (props.id && props.source === 'user') {
-          // User spot — upload directly
+        if (props.id) {
+          // Existing spot — upload directly
           photoSpotIdRef.current = props.id
           photoInputRef.current?.click()
         } else {
