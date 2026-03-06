@@ -20,11 +20,17 @@ const FIRE_POINTS_URL = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/re
 
 const ICON = {
   copy: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>',
-  navigate: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>',
+  navigate: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>',
   share: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
   pin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  pinSmall: '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f87171" stroke="none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3" fill="#1f2937"/></svg>',
   edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>',
   camera: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  vehicle: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h1m16 0h1M6.6 17H4a2 2 0 01-2-2v-4l2.7-5.4A2 2 0 016.5 4h11a2 2 0 011.8 1.1L22 10.5V15a2 2 0 01-2 2h-2.6"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/></svg>',
+  lock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
+  globe: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+  chevronL: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  chevronR: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
 }
 
 function getNavUrl(lat, lng) {
@@ -91,10 +97,61 @@ export default function Map({
 
   function attachPopupHandlers(popup, props, coords) {
     const el = popup.getElement()
+    const images = props.images || []
 
+    // Carousel logic
+    const carousel = el.querySelector('.wc-carousel')
+    if (carousel && images.length > 0) {
+      const track = carousel.querySelector('.wc-carousel-track')
+      const dots = carousel.querySelectorAll('.wc-dot')
+      const prevBtn = carousel.querySelector('.wc-carousel-prev')
+      const nextBtn = carousel.querySelector('.wc-carousel-next')
+      const removeBtn = carousel.querySelector('.wc-carousel-remove')
+      let idx = 0
+
+      function goTo(i) {
+        idx = Math.max(0, Math.min(i, images.length - 1))
+        track.style.transform = `translateX(-${idx * 100}%)`
+        dots.forEach((d, di) => d.classList.toggle('wc-dot-active', di === idx))
+      }
+
+      if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); goTo(idx - 1) })
+      if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); goTo(idx + 1) })
+
+      // Swipe support
+      let touchX = 0
+      carousel.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX }, { passive: true })
+      carousel.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - touchX
+        if (dx > 50) goTo(idx - 1)
+        else if (dx < -50) goTo(idx + 1)
+      })
+
+      // Click image to open fullscreen viewer
+      track.querySelectorAll('.wc-carousel-img').forEach((img) => {
+        img.addEventListener('click', () => {
+          const i = parseInt(img.dataset.photoIndex, 10) || 0
+          onViewPhotosRef.current({ images, index: i })
+        })
+      })
+
+      // Remove current photo
+      if (removeBtn) {
+        removeBtn.addEventListener('click', async (e) => {
+          e.stopPropagation()
+          const url = images[idx]
+          if (!url || !props.id) return
+          removeBtn.textContent = '...'
+          await onRemovePhotoRef.current(props.id, url)
+        })
+      }
+    }
+
+    // Coords copy
     const coordsEl = el.querySelector('#wc-coords')
     if (coordsEl) coordsEl.addEventListener('click', () => copyToClipboard(coords, coordsEl))
 
+    // Save to Waypoints
     const saveBtn = el.querySelector('#wc-save-spot')
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
@@ -109,7 +166,6 @@ export default function Map({
         })
         saveBtn.innerHTML = '✓ Saved!'
         saveBtn.classList.add('wc-btn-saved')
-        // Store the new ID so Add Photo can use it directly
         if (newId) {
           props.id = newId
           props.source = 'user'
@@ -117,7 +173,8 @@ export default function Map({
       })
     }
 
-    const shareEl = el.querySelector('#wc-share-spot') || el.querySelector('#wc-share-spot-selected')
+    // Share
+    const shareEl = el.querySelector('#wc-share-spot')
     if (shareEl && props.share_token) {
       shareEl.addEventListener('click', () => {
         const url = `${window.location.origin}?spot=${props.share_token}`
@@ -125,6 +182,7 @@ export default function Map({
       })
     }
 
+    // Edit
     const editEl = el.querySelector('#wc-edit-spot')
     if (editEl && props.id) {
       editEl.addEventListener('click', () => {
@@ -136,42 +194,14 @@ export default function Map({
       })
     }
 
-    // Photo viewer — click any thumbnail to open fullscreen gallery
-    const photoImgs = el.querySelectorAll('.wc-popup-img')
-    if (photoImgs.length > 0 && props.images?.length > 0) {
-      photoImgs.forEach((img) => {
-        img.style.cursor = 'pointer'
-        img.addEventListener('click', () => {
-          const idx = parseInt(img.dataset.photoIndex, 10) || 0
-          onViewPhotosRef.current({ images: props.images, index: idx })
-        })
-      })
-    }
-
-    // Remove photo buttons (owner only)
-    const removeBtns = el.querySelectorAll('.wc-img-remove')
-    removeBtns.forEach((btn) => {
-      btn.addEventListener('click', async (ev) => {
-        ev.stopPropagation()
-        const url = btn.dataset.photoUrl
-        if (!url || !props.id) return
-        btn.textContent = '...'
-        await onRemovePhotoRef.current(props.id, url)
-        // Remove the image element from the popup
-        const wrap = btn.closest('.wc-popup-img-wrap')
-        if (wrap) wrap.remove()
-      })
-    })
-
+    // Add Photo
     const addPhotoEl = el.querySelector('#wc-add-photo')
     if (addPhotoEl) {
       addPhotoEl.addEventListener('click', () => {
         if (props.id) {
-          // Existing spot — upload directly
           photoSpotIdRef.current = props.id
           photoInputRef.current?.click()
         } else {
-          // External campsite — save first, then upload
           pendingPhotoPropsRef.current = props
           photoInputRef.current?.click()
         }
@@ -718,76 +748,86 @@ export default function Map({
     })
 
     // Popup helper
-    function showPopup(m, lngLat, props) {
-      if (popupRef.current) popupRef.current.remove()
-
+    function buildPopupHTML(props, { isOwner, isLoggedIn }) {
       const srcColor = SOURCE_COLORS[props.source] || '#9ca3af'
       const srcLabel = SOURCE_LABELS[props.source] || props.source
-      const vehicleLabel = { any: 'Any vehicle', '4wd': '4WD required', 'hike-in': 'Hike-in only' }
+      const vehicleLabel = { any: 'Any Vehicle', '4wd': '4WD Required', 'hike-in': 'Hike-in Only' }
       const coords = `${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}`
+      const images = props.images || []
 
-      let meta = ''
-      if (props.source === 'user') {
-        const visLabel = props.is_public ? 'Public' : 'Private'
-        const visClass = props.is_public ? 'wc-vis-pub' : 'wc-vis-prv'
-        meta = `<span class="wc-meta">${vehicleLabel[props.category] || props.category}</span>
-          <span class="wc-meta ${visClass}">${visLabel}</span>`
-      } else if (props.category) {
-        meta = `<span class="wc-meta">${props.category}</span>`
+      // Photo carousel
+      let carouselHtml = ''
+      if (images.length > 0) {
+        const badge = `<div class="wc-carousel-badge">${ICON.camera} ${images.length} Photo${images.length > 1 ? 's' : ''}</div>`
+        const dots = images.length > 1
+          ? `<div class="wc-carousel-dots">${images.map((_, i) => `<span class="wc-dot${i === 0 ? ' wc-dot-active' : ''}" data-dot="${i}"></span>`).join('')}</div>`
+          : ''
+        const prevBtn = images.length > 1 ? `<button class="wc-carousel-arrow wc-carousel-prev">${ICON.chevronL}</button>` : ''
+        const nextBtn = images.length > 1 ? `<button class="wc-carousel-arrow wc-carousel-next">${ICON.chevronR}</button>` : ''
+        carouselHtml = `<div class="wc-carousel" data-index="0">
+          <div class="wc-carousel-track">${images.map((u, i) =>
+            `<img src="${u}" alt="" class="wc-carousel-img" data-photo-index="${i}" />`
+          ).join('')}</div>
+          ${prevBtn}${nextBtn}${badge}${dots}
+          ${isOwner ? `<button class="wc-carousel-remove" title="Remove photo">&times;</button>` : ''}
+        </div>`
       }
 
+      // Meta line
+      let metaHtml = ''
+      if (props.source === 'user') {
+        const veh = vehicleLabel[props.category] || vehicleLabel[props.vehicle_type] || props.category || 'Any Vehicle'
+        const visIcon = props.is_public ? ICON.globe : ICON.lock
+        const visLabel = props.is_public ? 'Public' : 'Private'
+        metaHtml = `<div class="wc-popup-meta">${ICON.vehicle}<span>${veh}</span><span class="wc-meta-sep">·</span>${visIcon}<span>${visLabel}</span></div>`
+      } else if (props.category) {
+        metaHtml = `<div class="wc-popup-meta">${ICON.vehicle}<span>${props.category}</span></div>`
+      }
+
+      // Buttons
       const saveRow = props.source !== 'user'
         ? `<button id="wc-save-spot" class="wc-btn wc-btn-save">${ICON.pin}<span>Save to Waypoints</span></button>`
         : ''
-
-      const shareBtn = props.source === 'user' && props.share_token
-        ? `<button id="wc-share-spot" class="wc-btn wc-btn-action">${ICON.share}<span>Share</span></button>`
+      const shareBtn = props.share_token
+        ? `<button id="wc-share-spot" class="wc-btn-sec">${ICON.share}<span>Share</span></button>`
+        : ''
+      const editBtn = isOwner
+        ? `<button id="wc-edit-spot" class="wc-btn-sec">${ICON.edit}<span>Edit</span></button>`
+        : ''
+      const addPhotoBtn = isLoggedIn
+        ? `<button id="wc-add-photo" class="wc-btn-sec">${ICON.camera}<span>Add Photo</span></button>`
         : ''
 
+      const secondaryBtns = [editBtn, addPhotoBtn, shareBtn].filter(Boolean).join('')
+
+      return `<div class="wc-popup">
+        ${carouselHtml}
+        <div class="wc-popup-body">
+          <div class="wc-popup-tags"><span class="wc-tag" style="background:${srcColor}">${srcLabel}</span></div>
+          <div class="wc-popup-name">${props.name}</div>
+          ${metaHtml}
+          ${props.notes ? `<div class="wc-popup-notes">${props.notes}</div>` : ''}
+          <div id="wc-coords" class="wc-popup-coords">${ICON.pinSmall}<span>${coords}</span></div>
+          <a href="${getNavUrl(props.lat, props.lng)}" target="_blank" rel="noopener" class="wc-btn-navigate">${ICON.navigate}<span>Navigate</span></a>
+          ${saveRow}
+          ${secondaryBtns ? `<div class="wc-popup-secondary">${secondaryBtns}</div>` : ''}
+        </div>
+      </div>`
+    }
+
+    function showPopup(m, lngLat, props) {
+      if (popupRef.current) popupRef.current.remove()
+      const coords = `${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}`
       const isOwner = props.source === 'user' && props.user_id && userRef.current && props.user_id === userRef.current.id
       const isLoggedIn = !!userRef.current
-      const editBtn = isOwner
-        ? `<button id="wc-edit-spot" class="wc-btn">${ICON.edit}<span>Edit</span></button>`
-        : ''
-      // Any logged-in user can add photos
-      const addPhotoBtn = isLoggedIn
-        ? `<button id="wc-add-photo" class="wc-btn">${ICON.camera}<span>Add Photo</span></button>`
-        : ''
-
-      const imgHtml = props.images && props.images.length > 0
-        ? `<div class="wc-popup-images">${props.images.map((u, i) =>
-            `<div class="wc-popup-img-wrap">` +
-              `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />` +
-              (isOwner ? `<button class="wc-img-remove" data-photo-url="${u}" title="Remove photo">&times;</button>` : '') +
-            `</div>`
-          ).join('')}</div>`
-        : ''
 
       popupRef.current = new maplibregl.Popup({
         closeButton: true,
-        maxWidth: '320px',
+        maxWidth: '340px',
         className: 'wildcamp-popup',
       })
         .setLngLat(lngLat)
-        .setHTML(
-          `<div class="wc-popup">
-            <div class="wc-popup-name">${props.name}</div>
-            <div class="wc-popup-tags">
-              <span class="wc-tag" style="background:${srcColor}">${srcLabel}</span>
-              ${meta}
-            </div>
-            <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
-            ${props.notes ? `<div class="wc-popup-notes">${props.notes}</div>` : ''}
-            ${saveRow}
-            <div class="wc-popup-actions">
-              <a href="${getNavUrl(props.lat, props.lng)}" target="_blank" rel="noopener" class="wc-btn wc-btn-nav">${ICON.navigate}<span>Navigate</span></a>
-              ${editBtn}
-              ${addPhotoBtn}
-              ${shareBtn}
-            </div>
-            ${imgHtml}
-          </div>`
-        )
+        .setHTML(buildPopupHTML(props, { isOwner, isLoggedIn }))
         .addTo(m)
 
       attachPopupHandlers(popupRef.current, props, coords)
@@ -1069,71 +1109,36 @@ export default function Map({
     if (!selectedSpot || !mapRef.current) return
     if (popupRef.current) popupRef.current.remove()
 
-    const vehicleLabel = { any: 'Any vehicle', '4wd': '4WD required', 'hike-in': 'Hike-in only' }
-    const visLabel = selectedSpot.is_public ? 'Public' : 'Private'
-    const visClass = selectedSpot.is_public ? 'wc-vis-pub' : 'wc-vis-prv'
     const coords = `${selectedSpot.lat.toFixed(5)}, ${selectedSpot.lng.toFixed(5)}`
-
-    const shareBtn = selectedSpot.share_token
-      ? `<button id="wc-share-spot-selected" class="wc-btn wc-btn-action">${ICON.share}<span>Share</span></button>`
-      : ''
-
     const isOwner = user && selectedSpot.user_id === user.id
-    const editBtn = isOwner
-      ? `<button id="wc-edit-spot" class="wc-btn">${ICON.edit}<span>Edit</span></button>`
-      : ''
-    const canAddPhoto = user && (isOwner || selectedSpot.is_public)
-    const addPhotoBtn = canAddPhoto
-      ? `<button id="wc-add-photo" class="wc-btn">${ICON.camera}<span>Add Photo</span></button>`
-      : ''
-
+    const isLoggedIn = !!user
     const spotImages = selectedSpot.images || []
-    const imgHtml = spotImages.length > 0
-      ? `<div class="wc-popup-images">${spotImages.map((u, i) =>
-          `<div class="wc-popup-img-wrap">` +
-            `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />` +
-            (isOwner ? `<button class="wc-img-remove" data-photo-url="${u}" title="Remove photo">&times;</button>` : '') +
-          `</div>`
-        ).join('')}</div>`
-      : ''
 
-    popupRef.current = new maplibregl.Popup({
-      closeButton: true,
-      maxWidth: '320px',
-      className: 'wildcamp-popup',
-    })
-      .setLngLat([selectedSpot.lng, selectedSpot.lat])
-      .setHTML(
-        `<div class="wc-popup">
-          <div class="wc-popup-name">${selectedSpot.name}</div>
-          <div class="wc-popup-tags">
-            <span class="wc-tag" style="background:#f97316">User Submitted</span>
-            <span class="wc-meta">${vehicleLabel[selectedSpot.vehicle_type] || selectedSpot.vehicle_type}</span>
-            <span class="wc-meta ${visClass}">${visLabel}</span>
-          </div>
-          <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
-          ${selectedSpot.notes ? `<div class="wc-popup-notes">${selectedSpot.notes}</div>` : ''}
-          <div class="wc-popup-actions">
-            <a href="${getNavUrl(selectedSpot.lat, selectedSpot.lng)}" target="_blank" rel="noopener" class="wc-btn wc-btn-nav">${ICON.navigate}<span>Navigate</span></a>
-            ${editBtn}
-            ${addPhotoBtn}
-            ${shareBtn}
-          </div>
-          ${imgHtml}
-        </div>`
-      )
-      .addTo(mapRef.current)
-
-    attachPopupHandlers(popupRef.current, {
+    const props = {
       id: selectedSpot.id,
       name: selectedSpot.name,
+      source: 'user',
+      category: selectedSpot.vehicle_type,
+      vehicle_type: selectedSpot.vehicle_type,
+      notes: selectedSpot.notes,
       lat: selectedSpot.lat,
       lng: selectedSpot.lng,
+      is_public: selectedSpot.is_public,
       share_token: selectedSpot.share_token,
       user_id: selectedSpot.user_id,
       images: spotImages,
-    }, coords)
+    }
 
+    popupRef.current = new maplibregl.Popup({
+      closeButton: true,
+      maxWidth: '340px',
+      className: 'wildcamp-popup',
+    })
+      .setLngLat([selectedSpot.lng, selectedSpot.lat])
+      .setHTML(buildPopupHTML(props, { isOwner, isLoggedIn }))
+      .addTo(mapRef.current)
+
+    attachPopupHandlers(popupRef.current, props, coords)
     popupRef.current.on('close', () => onSpotClick(null))
   }, [selectedSpot])
 
