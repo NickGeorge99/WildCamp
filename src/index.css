@@ -186,6 +186,12 @@ html, body, #root {
   border-radius: 6px;
   flex-shrink: 0;
   border: 1px solid #374151;
+  cursor: pointer;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+.wc-popup-img:hover {
+  border-color: #f97316;
+  opacity: 0.85;
 }
 
 .wc-popup-notes {

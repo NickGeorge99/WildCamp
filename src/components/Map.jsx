@@ -59,6 +59,7 @@ export default function Map({
   onEditSpot,
   onAddPhoto,
   onSaveAndGetId,
+  onViewPhotos,
   user,
 }) {
   const mapContainer = useRef(null)
@@ -67,12 +68,14 @@ export default function Map({
   const photoInputRef = useRef(null)
   const photoSpotIdRef = useRef(null)
   const pendingPhotoPropsRef = useRef(null)
+  const lastExternalSitesRef = useRef([])
   const onMapClickRef = useRef(onMapClick)
   const drawModeRef = useRef(drawMode)
   const onSaveSpotRef = useRef(onSaveSpot)
   const onEditSpotRef = useRef(onEditSpot)
   const onAddPhotoRef = useRef(onAddPhoto)
   const onSaveAndGetIdRef = useRef(onSaveAndGetId)
+  const onViewPhotosRef = useRef(onViewPhotos)
   const userRef = useRef(user)
   const spotsRef = useRef(spots)
 
@@ -82,6 +85,7 @@ export default function Map({
   useEffect(() => { onEditSpotRef.current = onEditSpot }, [onEditSpot])
   useEffect(() => { onAddPhotoRef.current = onAddPhoto }, [onAddPhoto])
   useEffect(() => { onSaveAndGetIdRef.current = onSaveAndGetId }, [onSaveAndGetId])
+  useEffect(() => { onViewPhotosRef.current = onViewPhotos }, [onViewPhotos])
   useEffect(() => { userRef.current = user }, [user])
   useEffect(() => { spotsRef.current = spots }, [spots])
 
@@ -123,6 +127,18 @@ export default function Map({
           popupRef.current?.remove()
           onEditSpotRef.current(fullSpot)
         }
+      })
+    }
+
+    // Photo viewer — click any thumbnail to open fullscreen gallery
+    const photoImgs = el.querySelectorAll('.wc-popup-img')
+    if (photoImgs.length > 0 && props.images?.length > 0) {
+      photoImgs.forEach((img) => {
+        img.style.cursor = 'pointer'
+        img.addEventListener('click', () => {
+          const idx = parseInt(img.dataset.photoIndex, 10) || 0
+          onViewPhotosRef.current({ images: props.images, index: idx })
+        })
       })
     }
 
@@ -183,6 +199,16 @@ export default function Map({
     if (photoInputRef.current) photoInputRef.current.value = ''
     photoSpotIdRef.current = null
     pendingPhotoPropsRef.current = null
+  }
+
+  function updateExternalCamps(m) {
+    const sites = lastExternalSitesRef.current
+    const userSpots = spotsRef.current || []
+    const filtered = sites.filter((s) =>
+      !userSpots.some((u) => Math.abs(u.lat - s.lat) < 0.0005 && Math.abs(u.lng - s.lng) < 0.0005)
+    )
+    const src = m?.getSource('external-camps')
+    if (src) src.setData(externalToGeoJSON(filtered))
   }
 
   useEffect(() => {
@@ -651,11 +677,8 @@ export default function Map({
       // --- Fetch external campsites on moveend ---
       function onMoveEnd() {
         fetchCampsites(map, (sites) => {
-          console.log(`[Map] received ${sites.length} external sites`)
-          const geojson = externalToGeoJSON(sites)
-          console.log(`[Map] GeoJSON features: ${geojson.features.length}`)
-          const src = map.getSource('external-camps')
-          if (src) src.setData(geojson)
+          lastExternalSitesRef.current = sites
+          updateExternalCamps(map)
         })
       }
       map.on('moveend', onMoveEnd)
@@ -710,7 +733,7 @@ export default function Map({
         : ''
 
       const imgHtml = props.images && props.images.length > 0
-        ? `<div class="wc-popup-images">${props.images.map((u) => `<img src="${u}" alt="" class="wc-popup-img" />`).join('')}</div>`
+        ? `<div class="wc-popup-images">${props.images.map((u, i) => `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />`).join('')}</div>`
         : ''
 
       popupRef.current = new maplibregl.Popup({
@@ -946,6 +969,8 @@ export default function Map({
     if (!map || !map.isStyleLoaded()) return
     const source = map.getSource('spots')
     if (source) source.setData(spotsToGeoJSON(spots))
+    // Re-filter external camps to hide newly saved duplicates
+    updateExternalCamps(map)
   }, [spots])
 
   // Toggle public lands
@@ -1037,7 +1062,7 @@ export default function Map({
 
     const spotImages = selectedSpot.images || []
     const imgHtml = spotImages.length > 0
-      ? `<div class="wc-popup-images">${spotImages.map((u) => `<img src="${u}" alt="" class="wc-popup-img" />`).join('')}</div>`
+      ? `<div class="wc-popup-images">${spotImages.map((u, i) => `<img src="${u}" alt="" class="wc-popup-img" data-photo-index="${i}" />`).join('')}</div>`
       : ''
 
     popupRef.current = new maplibregl.Popup({
@@ -1074,6 +1099,7 @@ export default function Map({
       lng: selectedSpot.lng,
       share_token: selectedSpot.share_token,
       user_id: selectedSpot.user_id,
+      images: spotImages,
     }, coords)
 
     popupRef.current.on('close', () => onSpotClick(null))

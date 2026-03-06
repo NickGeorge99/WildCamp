@@ -4,6 +4,7 @@ import SidePanel from './components/SidePanel'
 import Map from './components/Map'
 import AddSpotModal from './components/AddSpotModal'
 import EditSpotModal from './components/EditSpotModal'
+import PhotoViewer from './components/PhotoViewer'
 import AuthModal from './components/AuthModal'
 import { supabase } from './lib/supabase'
 
@@ -22,6 +23,7 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
   const [editingSpot, setEditingSpot] = useState(null)
+  const [viewingPhotos, setViewingPhotos] = useState(null)
 
   useEffect(() => {
     if (!supabase) return
@@ -249,6 +251,7 @@ export default function App() {
           onEditSpot={setEditingSpot}
           onAddPhoto={handleAddPhoto}
           onSaveAndGetId={handleSaveAndGetId}
+          onViewPhotos={setViewingPhotos}
           user={user}
         />
       </div>
@@ -258,6 +261,14 @@ export default function App() {
           latlng={pendingLatLng}
           onSubmit={handleSubmitSpot}
           onClose={() => setPendingLatLng(null)}
+        />
+      )}
+
+      {viewingPhotos && (
+        <PhotoViewer
+          images={viewingPhotos.images}
+          startIndex={viewingPhotos.index || 0}
+          onClose={() => setViewingPhotos(null)}
         />
       )}
 
