@@ -1,0 +1,167 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #111827;
+  /* Prevent pull-to-refresh and bounce on mobile */
+  overscroll-behavior: none;
+}
+
+/* App layout — desktop: row, mobile: column-reverse (map on top, bar on bottom) */
+.app-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Icon sidebar — desktop: vertical left bar */
+.icon-sidebar {
+  width: 56px;
+  min-width: 56px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: #9ca3af;
+  transition: all 0.15s;
+  cursor: pointer;
+  border: none;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+}
+.icon-btn-active {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+.icon-btn-active:hover {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fb923c;
+}
+
+/* Side panel — desktop: slides next to icon bar */
+.side-panel {
+  width: 280px;
+  min-width: 280px;
+  height: 100%;
+  background: #1f2937;
+  border-right: 1px solid #374151;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.side-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 25;
+}
+
+/* Dark popup for satellite map */
+.wildcamp-popup .maplibregl-popup-content {
+  background: #1f2937;
+  color: #f3f4f6;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid #374151;
+  max-width: 280px;
+}
+.wildcamp-popup .maplibregl-popup-tip {
+  border-top-color: #1f2937;
+}
+.wildcamp-popup .maplibregl-popup-close-button {
+  color: #9ca3af;
+  font-size: 18px;
+  padding: 4px 8px;
+}
+.wildcamp-popup .maplibregl-popup-close-button:hover {
+  color: #f3f4f6;
+  background: transparent;
+}
+
+/* Dark scrollbar */
+.side-panel ::-webkit-scrollbar {
+  width: 6px;
+}
+.side-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.side-panel ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+/* Move map controls above bottom bar on mobile */
+@media (max-width: 767px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  /* Icon bar becomes horizontal bottom bar */
+  .icon-sidebar {
+    width: 100%;
+    min-width: unset;
+    height: auto;
+    flex-direction: row;
+    order: 2;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Side panel — full overlay from bottom */
+  .side-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    min-width: unset;
+    height: 60vh;
+    max-height: 60vh;
+    border-right: none;
+    border-top: 1px solid #374151;
+    border-radius: 16px 16px 0 0;
+    z-index: 30;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Map takes remaining space */
+  .map-container {
+    flex: 1;
+    order: 1;
+  }
+
+  /* Adjust MapLibre controls */
+  .maplibregl-ctrl-bottom-right {
+    bottom: 70px !important;
+    right: 8px !important;
+  }
+  .maplibregl-ctrl-bottom-left {
+    bottom: 70px !important;
+  }
+
+  /* Popup max width on mobile */
+  .wildcamp-popup .maplibregl-popup-content {
+    max-width: 260px;
+  }
+}
