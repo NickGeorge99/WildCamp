@@ -8,6 +8,7 @@ export default function AuthModal({ onClose, onAuth }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -20,7 +21,11 @@ export default function AuthModal({ onClose, onAuth }) {
       if (error) setError(error.message)
       else onAuth(data.user)
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { marketing_opt_in: marketingOptIn } },
+      })
       if (error) setError(error.message)
       else if (data.user?.identities?.length === 0) {
         setError('An account with this email already exists.')
@@ -65,6 +70,17 @@ export default function AuthModal({ onClose, onAuth }) {
             minLength={6}
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-200 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
           />
+          {mode === 'signup' && (
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={(e) => setMarketingOptIn(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
+              />
+              <span className="text-xs text-gray-400">Send me updates about new features and camping tips</span>
+            </label>
+          )}
           <button
             type="submit"
             disabled={loading}

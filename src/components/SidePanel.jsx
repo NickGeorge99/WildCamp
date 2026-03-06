@@ -107,10 +107,12 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick, onDelete }) {
   const colorMap = { any: '#22c55e', '4wd': '#f97316', 'hike-in': '#3b82f6' }
 
   const [digestEnabled, setDigestEnabled] = useState(false)
-  const [digestLoading, setDigestLoading] = useState(true)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
+  const [prefsLoading, setPrefsLoading] = useState(true)
 
   useEffect(() => {
     if (!supabase || !user) return
+    setMarketingOptIn(!!user.user_metadata?.marketing_opt_in)
     supabase
       .from('notification_preferences')
       .select('digest_enabled')
@@ -118,7 +120,7 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick, onDelete }) {
       .maybeSingle()
       .then(({ data }) => {
         if (data) setDigestEnabled(data.digest_enabled)
-        setDigestLoading(false)
+        setPrefsLoading(false)
       })
   }, [user])
 
@@ -129,6 +131,13 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick, onDelete }) {
     await supabase
       .from('notification_preferences')
       .upsert({ user_id: user.id, digest_enabled: next }, { onConflict: 'user_id' })
+  }
+
+  async function toggleMarketing() {
+    if (!supabase) return
+    const next = !marketingOptIn
+    setMarketingOptIn(next)
+    await supabase.auth.updateUser({ data: { marketing_opt_in: next } })
   }
 
   return (
@@ -181,16 +190,28 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick, onDelete }) {
         </div>
       ))}
 
-      {/* Weekly digest toggle */}
-      {!digestLoading && (
-        <div
-          className="flex items-center gap-3 px-3 py-2.5 mt-3 rounded-lg border border-gray-700/50 bg-gray-800/30 cursor-pointer hover:bg-gray-700/30 transition-colors"
-          onClick={toggleDigest}
-        >
-          <span className="text-sm">📧</span>
-          <span className="flex-1 text-xs text-gray-400">Weekly digest — new spots & photos near you</span>
-          <div className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${digestEnabled ? 'bg-orange-500' : 'bg-gray-600'}`}>
-            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${digestEnabled ? 'translate-x-4' : ''}`} />
+      {/* Email preferences */}
+      {!prefsLoading && (
+        <div className="mt-3 space-y-1">
+          <div
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-700/50 bg-gray-800/30 cursor-pointer hover:bg-gray-700/30 transition-colors"
+            onClick={toggleDigest}
+          >
+            <span className="text-sm">📧</span>
+            <span className="flex-1 text-xs text-gray-400">Weekly digest — new spots & photos near you</span>
+            <div className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${digestEnabled ? 'bg-orange-500' : 'bg-gray-600'}`}>
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${digestEnabled ? 'translate-x-4' : ''}`} />
+            </div>
+          </div>
+          <div
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-700/50 bg-gray-800/30 cursor-pointer hover:bg-gray-700/30 transition-colors"
+            onClick={toggleMarketing}
+          >
+            <span className="text-sm">📣</span>
+            <span className="flex-1 text-xs text-gray-400">Product updates & camping tips</span>
+            <div className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${marketingOptIn ? 'bg-orange-500' : 'bg-gray-600'}`}>
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${marketingOptIn ? 'translate-x-4' : ''}`} />
+            </div>
           </div>
         </div>
       )}
