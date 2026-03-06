@@ -24,15 +24,23 @@ export default function Map({
   showCellCoverage,
   showFires,
   flyTo,
+  drawMode,
+  onToggleDrawMode,
+  onSaveSpot,
+  user,
 }) {
   const mapContainer = useRef(null)
   const mapRef = useRef(null)
   const popupRef = useRef(null)
   const onMapClickRef = useRef(onMapClick)
+  const drawModeRef = useRef(drawMode)
+  const onSaveSpotRef = useRef(onSaveSpot)
+  const userRef = useRef(user)
 
-  useEffect(() => {
-    onMapClickRef.current = onMapClick
-  }, [onMapClick])
+  useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
+  useEffect(() => { drawModeRef.current = drawMode }, [drawMode])
+  useEffect(() => { onSaveSpotRef.current = onSaveSpot }, [onSaveSpot])
+  useEffect(() => { userRef.current = user }, [user])
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -175,7 +183,7 @@ export default function Map({
             'fill-color': '#ef4444',
             'fill-opacity': 0.25,
           },
-          layout: { visibility: 'none' },
+          layout: { visibility: 'visible' },
         })
         // Fire perimeter outlines
         map.addLayer({
@@ -186,7 +194,7 @@ export default function Map({
             'line-color': '#dc2626',
             'line-width': 2,
           },
-          layout: { visibility: 'none' },
+          layout: { visibility: 'visible' },
         })
         // Wildfire points (WF) — orange/red
         map.addLayer({
@@ -201,7 +209,7 @@ export default function Map({
             'circle-stroke-width': 2,
             'circle-opacity': 0.9,
           },
-          layout: { visibility: 'none' },
+          layout: { visibility: 'visible' },
         })
         // Prescribed burn points (RX) — yellow
         map.addLayer({
@@ -216,7 +224,7 @@ export default function Map({
             'circle-stroke-width': 1.5,
             'circle-opacity': 0.85,
           },
-          layout: { visibility: 'none' },
+          layout: { visibility: 'visible' },
         })
         // Fire labels
         map.addLayer({
@@ -229,7 +237,7 @@ export default function Map({
             'text-offset': [0, 1.2],
             'text-anchor': 'top',
             'text-optional': true,
-            visibility: 'none',
+            visibility: 'visible',
           },
           paint: {
             'text-color': ['match', ['get', 'type'], 'RX', '#fde68a', '#fca5a5'],
@@ -430,10 +438,11 @@ export default function Map({
         map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
 
-      // Click map to add waypoint (only if not clicking a feature)
+      // Click map to add waypoint (only in draw mode, and not clicking a feature)
       map.on('click', (e) => {
         if (e.defaultPrevented) return
-        const hitLayers = ['spots-layer', 'external-camps-layer', 'external-clusters']
+        if (!drawModeRef.current) return
+        const hitLayers = ['spots-layer', 'external-camps-layer', 'external-clusters', 'fire-points-wf', 'fire-points-rx']
         const hits = map.queryRenderedFeatures(e.point, { layers: hitLayers.filter((l) => map.getLayer(l)) })
         if (hits.length > 0) return
         onMapClickRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
@@ -471,6 +480,10 @@ export default function Map({
         details = `<span style="color:#9ca3af">${props.category || ''}</span>`
       }
 
+      const saveBtn = props.source !== 'user'
+        ? `<button id="wc-save-spot" style="margin-top:8px;width:100%;padding:6px 0;background:#f97316;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Save to Waypoints</button>`
+        : ''
+
       popupRef.current = new maplibregl.Popup({
         closeButton: true,
         maxWidth: '300px',
@@ -486,9 +499,29 @@ export default function Map({
             </div>
             <div style="margin-top:4px;font-size:11px;color:#6b7280">${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}</div>
             ${props.notes ? `<div style="margin-top:6px;font-size:13px;color:#d1d5db">${props.notes}</div>` : ''}
+            ${saveBtn}
           </div>`
         )
         .addTo(m)
+
+      if (props.source !== 'user') {
+        const el = popupRef.current.getElement()
+        const btn = el.querySelector('#wc-save-spot')
+        if (btn) {
+          btn.addEventListener('click', () => {
+            onSaveSpotRef.current({
+              name: props.name,
+              notes: props.notes || '',
+              vehicle_type: 'any',
+              lat: props.lat,
+              lng: props.lng,
+            })
+            btn.textContent = 'Saved!'
+            btn.style.background = '#22c55e'
+            btn.disabled = true
+          })
+        }
+      }
     }
 
     // Fetch active wildfire data from NIFC
@@ -496,10 +529,8 @@ export default function Map({
       try {
         const params = new URLSearchParams({
           where: '1=1',
-          outFields: 'IncidentName,DailyAcres,PercentContained,IncidentTypeCategory',
-          outSR: '4326',
+          outFields: '*',
           f: 'json',
-          resultRecordCount: '2000',
         })
 
         const [pointsRes, perimsRes] = await Promise.all([
@@ -518,7 +549,7 @@ export default function Map({
                 geometry: { type: 'Point', coordinates: [f.geometry.x, f.geometry.y] },
                 properties: {
                   name: f.attributes.IncidentName || 'Unknown',
-                  acres: f.attributes.DailyAcres,
+                  acres: f.attributes.IncidentSize || f.attributes.DiscoveryAcres,
                   contained: f.attributes.PercentContained,
                   type: f.attributes.IncidentTypeCategory || 'WF',
                 },
@@ -544,8 +575,8 @@ export default function Map({
                   ),
                 },
                 properties: {
-                  name: f.attributes.IncidentName || 'Unknown',
-                  acres: f.attributes.DailyAcres || f.attributes.GISAcres,
+                  name: f.attributes.poly_IncidentName || f.attributes.attr_IncidentName || 'Unknown',
+                  acres: f.attributes.poly_GISAcres || f.attributes.attr_IncidentSize,
                 },
               })),
           }
@@ -649,7 +680,41 @@ export default function Map({
     popupRef.current.on('close', () => onSpotClick(null))
   }, [selectedSpot])
 
-  return <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+  // Update cursor for draw mode
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.getCanvas().style.cursor = drawMode ? 'crosshair' : ''
+  }, [drawMode])
+
+  return (
+    <div className="absolute inset-0 w-full h-full">
+      <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+
+      {/* Draw mode pencil button */}
+      <button
+        onClick={onToggleDrawMode}
+        className={`absolute z-10 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all ${
+          drawMode
+            ? 'bg-orange-500 text-white ring-2 ring-orange-300'
+            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+        }`}
+        style={{ bottom: 160, right: 10 }}
+        title={drawMode ? 'Cancel drawing' : 'Add waypoint'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+        </svg>
+      </button>
+
+      {/* Draw mode banner */}
+      {drawMode && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-orange-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg">
+          Tap the map to place a waypoint
+        </div>
+      )}
+    </div>
+  )
 }
 
 function spotsToGeoJSON(spots) {

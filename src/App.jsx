@@ -18,6 +18,7 @@ export default function App() {
   const [showFires, setShowFires] = useState(true)
   const [flyTo, setFlyTo] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
+  const [drawMode, setDrawMode] = useState(false)
 
   useEffect(() => {
     if (!supabase) return
@@ -49,6 +50,26 @@ export default function App() {
       return
     }
     setPendingLatLng(latlng)
+    setDrawMode(false)
+  }
+
+  async function handleSaveExisting(spotData) {
+    if (!user) {
+      setShowAuth(true)
+      return
+    }
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('spots')
+        .insert([{ ...spotData, user_id: user.id, is_public: false }])
+        .select()
+      if (!error && data) setSpots((prev) => [data[0], ...prev])
+    } else {
+      setSpots((prev) => [
+        { ...spotData, id: crypto.randomUUID(), user_id: 'demo', is_public: false, created_at: new Date().toISOString() },
+        ...prev,
+      ])
+    }
   }
 
   async function handleSubmitSpot(spot) {
@@ -122,6 +143,13 @@ export default function App() {
           showCellCoverage={showCellCoverage}
           showFires={showFires}
           flyTo={flyTo}
+          drawMode={drawMode}
+          onToggleDrawMode={() => {
+            if (!user) { setShowAuth(true); return }
+            setDrawMode(!drawMode)
+          }}
+          onSaveSpot={handleSaveExisting}
+          user={user}
         />
       </div>
 
