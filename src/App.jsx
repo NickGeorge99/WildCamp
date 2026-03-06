@@ -3,6 +3,7 @@ import IconSidebar from './components/IconSidebar'
 import SidePanel from './components/SidePanel'
 import Map from './components/Map'
 import AddSpotModal from './components/AddSpotModal'
+import EditSpotModal from './components/EditSpotModal'
 import AuthModal from './components/AuthModal'
 import { supabase } from './lib/supabase'
 
@@ -16,9 +17,11 @@ export default function App() {
   const [showSpots, setShowSpots] = useState(true)
   const [showCellCoverage, setShowCellCoverage] = useState(false)
   const [showFires, setShowFires] = useState(true)
+  const [show3DTerrain, setShow3DTerrain] = useState(false)
   const [flyTo, setFlyTo] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
+  const [editingSpot, setEditingSpot] = useState(null)
 
   useEffect(() => {
     if (!supabase) return
@@ -34,6 +37,23 @@ export default function App() {
   useEffect(() => {
     loadSpots()
   }, [user])
+
+  // Handle ?spot=<token> share links
+  useEffect(() => {
+    if (!supabase) return
+    const params = new URLSearchParams(window.location.search)
+    const spotToken = params.get('spot')
+    if (!spotToken) return
+
+    supabase.rpc('get_spot_by_share_token', { token: spotToken }).then(({ data, error }) => {
+      if (!error && data && data.length > 0) {
+        const spot = data[0]
+        setFlyTo({ lat: spot.lat, lng: spot.lng, zoom: 14, _ts: Date.now() })
+        setSelectedSpot(spot)
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    })
+  }, [])
 
   async function loadSpots() {
     if (!supabase) return
@@ -51,6 +71,19 @@ export default function App() {
     }
     setPendingLatLng(latlng)
     setDrawMode(false)
+  }
+
+  async function handleSaveAndGetId(spotData) {
+    if (!supabase || !user) return null
+    const { data, error } = await supabase
+      .from('spots')
+      .insert([{ ...spotData, user_id: user.id, is_public: true }])
+      .select()
+    if (!error && data) {
+      setSpots((prev) => [data[0], ...prev])
+      return data[0].id
+    }
+    return null
   }
 
   async function handleSaveExisting(spotData) {
@@ -86,6 +119,67 @@ export default function App() {
       ])
     }
     setPendingLatLng(null)
+  }
+
+  async function handleUpdateSpot(updated) {
+    if (supabase) {
+      const { id, ...fields } = updated
+      const { data, error } = await supabase
+        .from('spots')
+        .update(fields)
+        .eq('id', id)
+        .select()
+      if (!error && data) {
+        setSpots((prev) => prev.map((s) => (s.id === id ? data[0] : s)))
+        setSelectedSpot(data[0])
+      }
+    }
+    setEditingSpot(null)
+  }
+
+  async function handleDeleteSpot(id) {
+    if (supabase) {
+      await supabase.from('spots').delete().eq('id', id)
+    }
+    setSpots((prev) => prev.filter((s) => s.id !== id))
+    setSelectedSpot(null)
+    setEditingSpot(null)
+  }
+
+  async function handleAddPhoto(spotId, files) {
+    if (!supabase || !user) return
+    const newUrls = []
+    for (const file of files) {
+      const ext = file.name.split('.').pop()
+      const path = `spots/${spotId}/${crypto.randomUUID()}.${ext}`
+      const { error } = await supabase.storage.from('spot-images').upload(path, file, {
+        cacheControl: '31536000',
+        upsert: false,
+      })
+      if (error) {
+        console.error('Photo upload failed:', error)
+        continue
+      }
+      const { data } = supabase.storage.from('spot-images').getPublicUrl(path)
+      if (data?.publicUrl) newUrls.push(data.publicUrl)
+    }
+    if (newUrls.length > 0) {
+      // Use RPC to append photos — bypasses RLS so any user can add to public spots
+      const { error } = await supabase.rpc('add_spot_photos', {
+        spot_id: spotId,
+        new_urls: newUrls,
+      })
+      if (error) {
+        console.error('add_spot_photos RPC failed:', error)
+        return
+      }
+      // Refresh the spot locally
+      const spot = spots.find((s) => s.id === spotId)
+      const updatedImages = [...(spot?.images || []), ...newUrls]
+      const updatedSpot = { ...spot, images: updatedImages }
+      setSpots((prev) => prev.map((s) => (s.id === spotId ? updatedSpot : s)))
+      if (selectedSpot?.id === spotId) setSelectedSpot(updatedSpot)
+    }
   }
 
   async function handleLogout() {
@@ -127,6 +221,8 @@ export default function App() {
         onToggleCellCoverage={() => setShowCellCoverage(!showCellCoverage)}
         showFires={showFires}
         onToggleFires={() => setShowFires(!showFires)}
+        show3DTerrain={show3DTerrain}
+        onToggle3DTerrain={() => setShow3DTerrain(!show3DTerrain)}
         onSearch={handleSearch}
         onFlyToSpot={handleFlyToSpot}
         onLoginClick={() => setShowAuth(true)}
@@ -142,6 +238,7 @@ export default function App() {
           showSpots={showSpots}
           showCellCoverage={showCellCoverage}
           showFires={showFires}
+          show3DTerrain={show3DTerrain}
           flyTo={flyTo}
           drawMode={drawMode}
           onToggleDrawMode={() => {
@@ -149,6 +246,9 @@ export default function App() {
             setDrawMode(!drawMode)
           }}
           onSaveSpot={handleSaveExisting}
+          onEditSpot={setEditingSpot}
+          onAddPhoto={handleAddPhoto}
+          onSaveAndGetId={handleSaveAndGetId}
           user={user}
         />
       </div>
@@ -158,6 +258,15 @@ export default function App() {
           latlng={pendingLatLng}
           onSubmit={handleSubmitSpot}
           onClose={() => setPendingLatLng(null)}
+        />
+      )}
+
+      {editingSpot && (
+        <EditSpotModal
+          spot={editingSpot}
+          onClose={() => setEditingSpot(null)}
+          onUpdate={handleUpdateSpot}
+          onDelete={handleDeleteSpot}
         />
       )}
 

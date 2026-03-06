@@ -3,9 +3,13 @@ import maplibregl from 'maplibre-gl'
 import { mapStyle, addRoadLayers } from '../lib/mapStyle'
 import { registerMarkerImages } from '../lib/markers'
 import { fetchCampsites } from '../lib/campData'
+import { shareOrCopy } from '../lib/share'
 
 // PAD-US public lands: USGS MapServer with manager-based coloring (512px tiles for speed)
 const PAD_US_EXPORT = 'https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US/MapServer/export'
+const PAD_US_QUERY = 'https://edits.nationalmap.gov/arcgis/rest/services/PAD-US/PAD_US/MapServer/0/query'
+
+const AGENCY_COLORS = { BLM: '#e6b428', USFS: '#228b22', NPS: '#644628', FWS: '#32b4b4', DOD: '#b45050', TRIB: '#aa7846' }
 
 const SOURCE_COLORS = { osm: '#22c55e', ridb: '#3b82f6', user: '#f97316', usfs: '#a855f7', nps: '#14b8a6' }
 const SOURCE_LABELS = { osm: 'OSM Community', ridb: 'Recreation.gov', user: 'User Submitted', usfs: 'USFS Official', nps: 'National Park' }
@@ -13,6 +17,30 @@ const SOURCE_LABELS = { osm: 'OSM Community', ridb: 'Recreation.gov', user: 'Use
 // NIFC active wildfire endpoints
 const FIRE_PERIMETERS_URL = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query'
 const FIRE_POINTS_URL = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query'
+
+const ICON = {
+  copy: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>',
+  navigate: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>',
+  share: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
+  pin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>',
+  camera: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+}
+
+function getNavUrl(lat, lng) {
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream
+  return isIOS
+    ? `maps://maps.apple.com/?daddr=${lat},${lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerHTML
+    btn.innerHTML = '<span style="color:#22c55e">Copied!</span>'
+    setTimeout(() => { btn.innerHTML = orig }, 1500)
+  }).catch(() => {})
+}
 
 export default function Map({
   spots,
@@ -23,24 +51,139 @@ export default function Map({
   showSpots,
   showCellCoverage,
   showFires,
+  show3DTerrain,
   flyTo,
   drawMode,
   onToggleDrawMode,
   onSaveSpot,
+  onEditSpot,
+  onAddPhoto,
+  onSaveAndGetId,
   user,
 }) {
   const mapContainer = useRef(null)
   const mapRef = useRef(null)
   const popupRef = useRef(null)
+  const photoInputRef = useRef(null)
+  const photoSpotIdRef = useRef(null)
+  const pendingPhotoPropsRef = useRef(null)
   const onMapClickRef = useRef(onMapClick)
   const drawModeRef = useRef(drawMode)
   const onSaveSpotRef = useRef(onSaveSpot)
+  const onEditSpotRef = useRef(onEditSpot)
+  const onAddPhotoRef = useRef(onAddPhoto)
+  const onSaveAndGetIdRef = useRef(onSaveAndGetId)
   const userRef = useRef(user)
+  const spotsRef = useRef(spots)
 
   useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
   useEffect(() => { drawModeRef.current = drawMode }, [drawMode])
   useEffect(() => { onSaveSpotRef.current = onSaveSpot }, [onSaveSpot])
+  useEffect(() => { onEditSpotRef.current = onEditSpot }, [onEditSpot])
+  useEffect(() => { onAddPhotoRef.current = onAddPhoto }, [onAddPhoto])
+  useEffect(() => { onSaveAndGetIdRef.current = onSaveAndGetId }, [onSaveAndGetId])
   useEffect(() => { userRef.current = user }, [user])
+  useEffect(() => { spotsRef.current = spots }, [spots])
+
+  function attachPopupHandlers(popup, props, coords) {
+    const el = popup.getElement()
+
+    const coordsEl = el.querySelector('#wc-coords')
+    if (coordsEl) coordsEl.addEventListener('click', () => copyToClipboard(coords, coordsEl))
+
+    const saveBtn = el.querySelector('#wc-save-spot')
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        onSaveSpotRef.current({
+          name: props.name,
+          notes: props.notes || '',
+          vehicle_type: 'any',
+          lat: props.lat,
+          lng: props.lng,
+        })
+        saveBtn.innerHTML = '✓ Saved!'
+        saveBtn.classList.add('wc-btn-saved')
+        saveBtn.disabled = true
+      })
+    }
+
+    const shareEl = el.querySelector('#wc-share-spot') || el.querySelector('#wc-share-spot-selected')
+    if (shareEl && props.share_token) {
+      shareEl.addEventListener('click', () => {
+        const url = `${window.location.origin}?spot=${props.share_token}`
+        shareOrCopy(url, props.name, shareEl)
+      })
+    }
+
+    const editEl = el.querySelector('#wc-edit-spot')
+    if (editEl && props.id) {
+      editEl.addEventListener('click', () => {
+        const fullSpot = spotsRef.current.find((s) => s.id === props.id)
+        if (fullSpot) {
+          popupRef.current?.remove()
+          onEditSpotRef.current(fullSpot)
+        }
+      })
+    }
+
+    const addPhotoEl = el.querySelector('#wc-add-photo')
+    if (addPhotoEl) {
+      addPhotoEl.addEventListener('click', () => {
+        if (props.id && props.source === 'user') {
+          // User spot — upload directly
+          photoSpotIdRef.current = props.id
+          photoInputRef.current?.click()
+        } else {
+          // External campsite — save first, then upload
+          pendingPhotoPropsRef.current = props
+          photoInputRef.current?.click()
+        }
+      })
+    }
+  }
+
+  async function handlePhotoInput(e) {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+
+    const btn = popupRef.current?.getElement()?.querySelector('#wc-add-photo')
+    if (btn) {
+      btn.innerHTML = `<span style="font-size:12px">Uploading...</span>`
+      btn.style.opacity = '0.6'
+      btn.style.pointerEvents = 'none'
+    }
+
+    let spotId = photoSpotIdRef.current
+    const pendingProps = pendingPhotoPropsRef.current
+
+    // If it's an external campsite, save it first to get a spot id
+    if (!spotId && pendingProps) {
+      spotId = await onSaveAndGetIdRef.current({
+        name: pendingProps.name,
+        notes: pendingProps.notes || '',
+        vehicle_type: 'any',
+        lat: pendingProps.lat,
+        lng: pendingProps.lng,
+      })
+    }
+
+    if (spotId && onAddPhotoRef.current) {
+      await onAddPhotoRef.current(spotId, files)
+    }
+
+    if (btn) {
+      btn.innerHTML = `<span style="color:#22c55e;font-size:12px;font-weight:600">Added!</span>`
+      setTimeout(() => {
+        btn.innerHTML = `${ICON.camera}<span>Add Photo</span>`
+        btn.style.opacity = ''
+        btn.style.pointerEvents = ''
+      }, 2000)
+    }
+
+    if (photoInputRef.current) photoInputRef.current.value = ''
+    photoSpotIdRef.current = null
+    pendingPhotoPropsRef.current = null
+  }
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -67,6 +210,23 @@ export default function Map({
       // Register pin marker images
       try { registerMarkerImages(map) } catch (e) { console.error('Marker images failed:', e) }
 
+      // Terrain DEM source + hillshade
+      try {
+        map.addSource('dem', {
+          type: 'raster-dem',
+          tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+          encoding: 'terrarium',
+          tileSize: 256,
+          maxzoom: 15,
+        })
+        map.addLayer({
+          id: 'hillshade',
+          type: 'hillshade',
+          source: 'dem',
+          paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#000000' },
+        })
+      } catch (e) { console.error('Terrain layers failed:', e) }
+
       // PAD-US public lands
       try {
         const renderer = JSON.stringify({
@@ -75,9 +235,9 @@ export default function Map({
           defaultSymbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [120, 120, 120, 80] },
           uniqueValueInfos: [
             { value: 'BLM',  symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [230, 180, 40, 140], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [180, 140, 30, 160], width: 0.5 } } },
-            { value: 'USFS', symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [50, 160, 60, 140], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [30, 120, 40, 160], width: 0.5 } } },
-            { value: 'NPS',  symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [120, 190, 60, 140], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [90, 150, 40, 160], width: 0.5 } } },
-            { value: 'FWS',  symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [50, 160, 60, 120], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [30, 120, 40, 140], width: 0.5 } } },
+            { value: 'USFS', symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [34, 139, 34, 140], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [20, 100, 20, 160], width: 0.5 } } },
+            { value: 'NPS',  symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [100, 70, 40, 140], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [80, 55, 30, 160], width: 0.5 } } },
+            { value: 'FWS',  symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [50, 180, 180, 130], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [30, 140, 140, 150], width: 0.5 } } },
             { value: 'DOD',  symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [180, 80, 80, 100], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [140, 60, 60, 120], width: 0.5 } } },
             { value: 'TRIB', symbol: { type: 'esriSFS', style: 'esriSFSSolid', color: [170, 120, 70, 100], outline: { type: 'esriSLS', style: 'esriSLSSolid', color: [140, 90, 50, 120], width: 0.5 } } },
           ],
@@ -106,6 +266,11 @@ export default function Map({
           type: 'raster',
           source: 'pad-us',
           paint: { 'raster-opacity': 0.6 },
+        })
+        // Land labels source (layer added later so it renders on top)
+        map.addSource('land-labels', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
         })
       } catch (e) { console.error('PAD-US layers failed:', e) }
 
@@ -255,22 +420,22 @@ export default function Map({
             const contained = props.contained != null ? `${props.contained}% contained` : ''
             const badgeColor = isRx ? '#d97706' : '#dc2626'
             const badgeText = isRx ? 'Prescribed Burn' : 'Wildfire'
-            const nameColor = isRx ? '#fde68a' : '#fca5a5'
+            const nameClass = isRx ? 'wc-fire-rx' : 'wc-fire-wf'
             if (popupRef.current) popupRef.current.remove()
             popupRef.current = new maplibregl.Popup({
               closeButton: true,
-              maxWidth: '280px',
+              maxWidth: '320px',
               className: 'wildcamp-popup',
             })
               .setLngLat(e.lngLat)
               .setHTML(
-                `<div style="padding:8px">
-                  <strong style="font-size:14px;color:${nameColor}">${props.name || 'Unknown'}</strong>
-                  <div style="margin-top:4px;display:flex;gap:8px;align-items:center;font-size:12px">
-                    <span style="background:${badgeColor};color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${badgeText}</span>
-                    <span style="color:#9ca3af">${acres}</span>
+                `<div class="wc-popup">
+                  <div class="wc-popup-name ${nameClass}">${props.name || 'Unknown'}</div>
+                  <div class="wc-popup-tags">
+                    <span class="wc-tag" style="background:${badgeColor}">${badgeText}</span>
+                    <span class="wc-meta">${acres}</span>
                   </div>
-                  ${contained ? `<div style="margin-top:4px;font-size:12px;color:#9ca3af">${contained}</div>` : ''}
+                  ${contained ? `<div class="wc-popup-notes">${contained}</div>` : ''}
                 </div>`
               )
               .addTo(map)
@@ -385,6 +550,33 @@ export default function Map({
         },
       })
 
+      // --- Land labels layer (on top of everything) ---
+      if (map.getSource('land-labels')) {
+        map.addLayer({
+          id: 'land-labels-text',
+          type: 'symbol',
+          source: 'land-labels',
+          layout: {
+            'text-field': ['get', 'label'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 6, 10, 10, 13, 14, 15],
+            'text-font': ['Noto Sans Bold'],
+            'text-transform': 'uppercase',
+            'text-letter-spacing': 0.08,
+            'text-max-width': 10,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+            'text-padding': 20,
+            'symbol-sort-key': ['*', -1, ['get', 'acres']],
+          },
+          paint: {
+            'text-color': ['get', 'color'],
+            'text-halo-color': 'rgba(0,0,0,0.75)',
+            'text-halo-width': 1.5,
+            'text-opacity': 0.9,
+          },
+        })
+      }
+
       // --- Click handlers ---
 
       // Click user spots
@@ -392,6 +584,7 @@ export default function Map({
         if (e.features.length > 0) {
           const props = e.features[0].properties
           showPopup(map, e.lngLat, {
+            id: props.id,
             name: props.name,
             source: 'user',
             category: props.vehicle_type,
@@ -399,6 +592,9 @@ export default function Map({
             lat: e.lngLat.lat,
             lng: e.lngLat.lng,
             is_public: props.is_public === true || props.is_public === 'true',
+            share_token: props.share_token,
+            user_id: props.user_id,
+            images: props.images ? JSON.parse(props.images) : [],
           })
           e.preventDefault()
         }
@@ -438,14 +634,18 @@ export default function Map({
         map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
 
-      // Click map to add waypoint (only in draw mode, and not clicking a feature)
+      // Click map — draw mode: add waypoint, otherwise: show location info
       map.on('click', (e) => {
         if (e.defaultPrevented) return
-        if (!drawModeRef.current) return
         const hitLayers = ['spots-layer', 'external-camps-layer', 'external-clusters', 'fire-points-wf', 'fire-points-rx']
         const hits = map.queryRenderedFeatures(e.point, { layers: hitLayers.filter((l) => map.getLayer(l)) })
         if (hits.length > 0) return
-        onMapClickRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+
+        if (drawModeRef.current) {
+          onMapClickRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+        } else {
+          showLocationPopup(map, e.lngLat)
+        }
       })
 
       // --- Fetch external campsites on moveend ---
@@ -461,6 +661,15 @@ export default function Map({
       map.on('moveend', onMoveEnd)
       // Initial fetch if zoomed in enough
       onMoveEnd()
+
+      // --- Public land labels ---
+      let labelTimer = null
+      function fetchLandLabels() {
+        clearTimeout(labelTimer)
+        labelTimer = setTimeout(() => _fetchLandLabels(map), 400)
+      }
+      map.on('moveend', fetchLandLabels)
+      fetchLandLabels()
     })
 
     // Popup helper
@@ -470,20 +679,79 @@ export default function Map({
       const srcColor = SOURCE_COLORS[props.source] || '#9ca3af'
       const srcLabel = SOURCE_LABELS[props.source] || props.source
       const vehicleLabel = { any: 'Any vehicle', '4wd': '4WD required', 'hike-in': 'Hike-in only' }
+      const coords = `${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}`
 
-      let details = ''
+      let meta = ''
       if (props.source === 'user') {
         const visLabel = props.is_public ? 'Public' : 'Private'
-        details = `<span style="color:#9ca3af">${vehicleLabel[props.category] || props.category}</span>
-          <span style="color:${props.is_public ? '#f97316' : '#9ca3af'};font-weight:600">${visLabel}</span>`
-      } else {
-        details = `<span style="color:#9ca3af">${props.category || ''}</span>`
+        const visClass = props.is_public ? 'wc-vis-pub' : 'wc-vis-prv'
+        meta = `<span class="wc-meta">${vehicleLabel[props.category] || props.category}</span>
+          <span class="wc-meta ${visClass}">${visLabel}</span>`
+      } else if (props.category) {
+        meta = `<span class="wc-meta">${props.category}</span>`
       }
 
-      const saveBtn = props.source !== 'user'
-        ? `<button id="wc-save-spot" style="margin-top:8px;width:100%;padding:6px 0;background:#f97316;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Save to Waypoints</button>`
+      const saveRow = props.source !== 'user'
+        ? `<button id="wc-save-spot" class="wc-btn wc-btn-save">${ICON.pin}<span>Save to Waypoints</span></button>`
         : ''
 
+      const shareBtn = props.source === 'user' && props.share_token
+        ? `<button id="wc-share-spot" class="wc-btn wc-btn-action">${ICON.share}<span>Share</span></button>`
+        : ''
+
+      const isOwner = props.source === 'user' && props.user_id && userRef.current && props.user_id === userRef.current.id
+      const isLoggedIn = !!userRef.current
+      const editBtn = isOwner
+        ? `<button id="wc-edit-spot" class="wc-btn">${ICON.edit}<span>Edit</span></button>`
+        : ''
+      // Any logged-in user can add photos
+      const addPhotoBtn = isLoggedIn
+        ? `<button id="wc-add-photo" class="wc-btn">${ICON.camera}<span>Add Photo</span></button>`
+        : ''
+
+      const imgHtml = props.images && props.images.length > 0
+        ? `<div class="wc-popup-images">${props.images.map((u) => `<img src="${u}" alt="" class="wc-popup-img" />`).join('')}</div>`
+        : ''
+
+      popupRef.current = new maplibregl.Popup({
+        closeButton: true,
+        maxWidth: '320px',
+        className: 'wildcamp-popup',
+      })
+        .setLngLat(lngLat)
+        .setHTML(
+          `<div class="wc-popup">
+            <div class="wc-popup-name">${props.name}</div>
+            <div class="wc-popup-tags">
+              <span class="wc-tag" style="background:${srcColor}">${srcLabel}</span>
+              ${meta}
+            </div>
+            ${imgHtml}
+            <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
+            ${props.notes ? `<div class="wc-popup-notes">${props.notes}</div>` : ''}
+            ${saveRow}
+            <div class="wc-popup-actions">
+              <a href="${getNavUrl(props.lat, props.lng)}" target="_blank" rel="noopener" class="wc-btn wc-btn-nav">${ICON.navigate}<span>Navigate</span></a>
+              ${editBtn}
+              ${addPhotoBtn}
+              ${shareBtn}
+            </div>
+          </div>`
+        )
+        .addTo(m)
+
+      attachPopupHandlers(popupRef.current, props, coords)
+    }
+
+    // Show location info popup for tapping empty map space
+    async function showLocationPopup(m, lngLat) {
+      if (popupRef.current) popupRef.current.remove()
+
+      const lat = lngLat.lat
+      const lng = lngLat.lng
+      const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+
+      // Show immediately with coords, then update with place name
       popupRef.current = new maplibregl.Popup({
         closeButton: true,
         maxWidth: '300px',
@@ -491,36 +759,42 @@ export default function Map({
       })
         .setLngLat(lngLat)
         .setHTML(
-          `<div style="padding:8px">
-            <strong style="font-size:14px;color:#f3f4f6">${props.name}</strong>
-            <div style="margin-top:4px;display:flex;gap:8px;align-items:center;font-size:12px">
-              <span style="background:${srcColor};color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${srcLabel}</span>
-              ${details}
+          `<div class="wc-popup">
+            <div class="wc-popup-name" id="wc-location-name">Loading...</div>
+            <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
+            <div class="wc-popup-actions">
+              <a href="${getNavUrl(lat, lng)}" target="_blank" rel="noopener" class="wc-btn wc-btn-nav">${ICON.navigate}<span>Navigate</span></a>
             </div>
-            <div style="margin-top:4px;font-size:11px;color:#6b7280">${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}</div>
-            ${props.notes ? `<div style="margin-top:6px;font-size:13px;color:#d1d5db">${props.notes}</div>` : ''}
-            ${saveBtn}
           </div>`
         )
         .addTo(m)
 
-      if (props.source !== 'user') {
-        const el = popupRef.current.getElement()
-        const btn = el.querySelector('#wc-save-spot')
-        if (btn) {
-          btn.addEventListener('click', () => {
-            onSaveSpotRef.current({
-              name: props.name,
-              notes: props.notes || '',
-              vehicle_type: 'any',
-              lat: props.lat,
-              lng: props.lng,
-            })
-            btn.textContent = 'Saved!'
-            btn.style.background = '#22c55e'
-            btn.disabled = true
-          })
+      // Attach copy handler
+      const el = popupRef.current.getElement()
+      const coordsEl = el.querySelector('#wc-coords')
+      if (coordsEl) coordsEl.addEventListener('click', () => copyToClipboard(coords, coordsEl))
+
+      // Reverse geocode
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14`,
+          { signal: AbortSignal.timeout(5000) }
+        )
+        const data = await res.json()
+        const nameEl = popupRef.current?.getElement()?.querySelector('#wc-location-name')
+        if (nameEl && data.display_name) {
+          // Build a short, useful name from address parts
+          const a = data.address || {}
+          const parts = [
+            a.tourism || a.natural || a.leisure || a.park || a.national_park || '',
+            a.city || a.town || a.village || a.hamlet || a.county || '',
+            a.state || '',
+          ].filter(Boolean)
+          nameEl.textContent = parts.length > 0 ? parts.join(', ') : data.display_name.split(',').slice(0, 3).join(',')
         }
+      } catch {
+        const nameEl = popupRef.current?.getElement()?.querySelector('#wc-location-name')
+        if (nameEl) nameEl.textContent = 'Unknown location'
       }
     }
 
@@ -589,6 +863,79 @@ export default function Map({
       }
     }
 
+    // Fetch public land labels from PAD-US
+    async function _fetchLandLabels(m) {
+      const zoom = m.getZoom()
+      if (zoom < 6) {
+        const src = m.getSource('land-labels')
+        if (src) src.setData({ type: 'FeatureCollection', features: [] })
+        return
+      }
+
+      // Minimum acreage based on zoom — show bigger areas when zoomed out
+      const minAcres = zoom < 8 ? 100000 : zoom < 10 ? 10000 : zoom < 12 ? 1000 : 100
+
+      const bounds = m.getBounds()
+      const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
+
+      try {
+        const params = new URLSearchParams({
+          where: `GIS_Acres>${minAcres}`,
+          outFields: 'Unit_Nm,Mang_Name,GIS_Acres',
+          returnGeometry: 'true',
+          geometryType: 'esriGeometryEnvelope',
+          geometry: bbox,
+          inSR: '4326',
+          outSR: '4326',
+          spatialRel: 'esriSpatialRelIntersects',
+          f: 'json',
+          resultRecordCount: '80',
+          maxAllowableOffset: '0.5',
+        })
+
+        const res = await fetch(`${PAD_US_QUERY}?${params}`, { signal: AbortSignal.timeout(8000) })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!data.features) return
+
+        // Deduplicate by unit name, keeping largest
+        const byName = new Map()
+        for (const f of data.features) {
+          const name = f.attributes.Unit_Nm
+          if (!name || name === 'National Public Lands') continue
+          const existing = byName.get(name)
+          if (!existing || f.attributes.GIS_Acres > existing.attributes.GIS_Acres) {
+            byName.set(name, f)
+          }
+        }
+
+        const features = []
+        for (const [, f] of byName) {
+          const rings = f.geometry?.rings
+          if (!rings || !rings[0]) continue
+          const pts = rings[0]
+          const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length
+          const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length
+          const agency = f.attributes.Mang_Name
+          features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [cx, cy] },
+            properties: {
+              label: f.attributes.Unit_Nm,
+              agency,
+              acres: f.attributes.GIS_Acres,
+              color: AGENCY_COLORS[agency] || '#9ca3af',
+            },
+          })
+        }
+
+        const src = m.getSource('land-labels')
+        if (src) src.setData({ type: 'FeatureCollection', features })
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error('Land labels fetch failed:', e)
+      }
+    }
+
     mapRef.current = map
     return () => map.remove()
   }, [])
@@ -607,6 +954,7 @@ export default function Map({
     if (!map || !map.isStyleLoaded()) return
     const vis = showPublicLands ? 'visible' : 'none'
     if (map.getLayer('public-lands-fill')) map.setLayoutProperty('public-lands-fill', 'visibility', vis)
+    if (map.getLayer('land-labels-text')) map.setLayoutProperty('land-labels-text', 'visibility', vis)
   }, [showPublicLands])
 
   // Toggle spots (user + external)
@@ -639,6 +987,21 @@ export default function Map({
     }
   }, [showFires])
 
+  // Toggle 3D terrain
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    if (show3DTerrain) {
+      if (map.getSource('dem')) map.setTerrain({ source: 'dem', exaggeration: 1.5 })
+    } else {
+      map.setTerrain(null)
+    }
+    // Hillshade always visible for depth — terrain toggle controls 3D extrusion
+    if (map.getLayer('hillshade')) {
+      map.setLayoutProperty('hillshade', 'visibility', 'visible')
+    }
+  }, [show3DTerrain])
+
   // Fly to
   useEffect(() => {
     if (!flyTo || !mapRef.current) return
@@ -656,26 +1019,62 @@ export default function Map({
 
     const vehicleLabel = { any: 'Any vehicle', '4wd': '4WD required', 'hike-in': 'Hike-in only' }
     const visLabel = selectedSpot.is_public ? 'Public' : 'Private'
-    const visColor = selectedSpot.is_public ? '#f97316' : '#9ca3af'
+    const visClass = selectedSpot.is_public ? 'wc-vis-pub' : 'wc-vis-prv'
+    const coords = `${selectedSpot.lat.toFixed(5)}, ${selectedSpot.lng.toFixed(5)}`
+
+    const shareBtn = selectedSpot.share_token
+      ? `<button id="wc-share-spot-selected" class="wc-btn wc-btn-action">${ICON.share}<span>Share</span></button>`
+      : ''
+
+    const isOwner = user && selectedSpot.user_id === user.id
+    const editBtn = isOwner
+      ? `<button id="wc-edit-spot" class="wc-btn">${ICON.edit}<span>Edit</span></button>`
+      : ''
+    const canAddPhoto = user && (isOwner || selectedSpot.is_public)
+    const addPhotoBtn = canAddPhoto
+      ? `<button id="wc-add-photo" class="wc-btn">${ICON.camera}<span>Add Photo</span></button>`
+      : ''
+
+    const spotImages = selectedSpot.images || []
+    const imgHtml = spotImages.length > 0
+      ? `<div class="wc-popup-images">${spotImages.map((u) => `<img src="${u}" alt="" class="wc-popup-img" />`).join('')}</div>`
+      : ''
 
     popupRef.current = new maplibregl.Popup({
       closeButton: true,
-      maxWidth: '280px',
+      maxWidth: '320px',
       className: 'wildcamp-popup',
     })
       .setLngLat([selectedSpot.lng, selectedSpot.lat])
       .setHTML(
-        `<div style="padding:8px">
-          <strong style="font-size:14px;color:#f3f4f6">${selectedSpot.name}</strong>
-          <div style="margin-top:4px;display:flex;gap:8px;font-size:12px">
-            <span style="background:#f97316;color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">User Submitted</span>
-            <span style="color:#9ca3af">${vehicleLabel[selectedSpot.vehicle_type] || selectedSpot.vehicle_type}</span>
-            <span style="color:${visColor};font-weight:600">${visLabel}</span>
+        `<div class="wc-popup">
+          <div class="wc-popup-name">${selectedSpot.name}</div>
+          <div class="wc-popup-tags">
+            <span class="wc-tag" style="background:#f97316">User Submitted</span>
+            <span class="wc-meta">${vehicleLabel[selectedSpot.vehicle_type] || selectedSpot.vehicle_type}</span>
+            <span class="wc-meta ${visClass}">${visLabel}</span>
           </div>
-          ${selectedSpot.notes ? `<div style="margin-top:6px;font-size:13px;color:#d1d5db">${selectedSpot.notes}</div>` : ''}
+          ${imgHtml}
+          <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
+          ${selectedSpot.notes ? `<div class="wc-popup-notes">${selectedSpot.notes}</div>` : ''}
+          <div class="wc-popup-actions">
+            <a href="${getNavUrl(selectedSpot.lat, selectedSpot.lng)}" target="_blank" rel="noopener" class="wc-btn wc-btn-nav">${ICON.navigate}<span>Navigate</span></a>
+            ${editBtn}
+            ${addPhotoBtn}
+            ${shareBtn}
+          </div>
         </div>`
       )
       .addTo(mapRef.current)
+
+    attachPopupHandlers(popupRef.current, {
+      id: selectedSpot.id,
+      name: selectedSpot.name,
+      lat: selectedSpot.lat,
+      lng: selectedSpot.lng,
+      share_token: selectedSpot.share_token,
+      user_id: selectedSpot.user_id,
+    }, coords)
 
     popupRef.current.on('close', () => onSpotClick(null))
   }, [selectedSpot])
@@ -690,16 +1089,23 @@ export default function Map({
   return (
     <div className="absolute inset-0 w-full h-full">
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handlePhotoInput}
+      />
 
       {/* Draw mode pencil button */}
       <button
         onClick={onToggleDrawMode}
-        className={`absolute z-10 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all ${
+        className={`absolute z-10 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all top-3 right-3 ${
           drawMode
             ? 'bg-orange-500 text-white ring-2 ring-orange-300'
             : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
         }`}
-        style={{ bottom: 160, right: 10 }}
         title={drawMode ? 'Cancel drawing' : 'Add waypoint'}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -729,6 +1135,9 @@ function spotsToGeoJSON(spots) {
         notes: s.notes || '',
         vehicle_type: s.vehicle_type,
         is_public: s.is_public,
+        share_token: s.share_token || '',
+        user_id: s.user_id || '',
+        images: JSON.stringify(s.images || []),
         source: 'user',
       },
     })),

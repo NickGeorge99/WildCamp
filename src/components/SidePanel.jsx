@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { shareOrCopy } from '../lib/share'
 
 export default function SidePanel({
   activePanel,
@@ -13,6 +14,8 @@ export default function SidePanel({
   onToggleCellCoverage,
   showFires,
   onToggleFires,
+  show3DTerrain,
+  onToggle3DTerrain,
   onSearch,
   onFlyToSpot,
   onLoginClick,
@@ -60,6 +63,8 @@ export default function SidePanel({
               onToggleCellCoverage={onToggleCellCoverage}
               showFires={showFires}
               onToggleFires={onToggleFires}
+              show3DTerrain={show3DTerrain}
+              onToggle3DTerrain={onToggle3DTerrain}
             />
           )}
           {activePanel === 'search' && (
@@ -102,10 +107,10 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick }) {
   return (
     <div className="mt-2 space-y-1">
       {userSpots.map((s) => (
-        <button
+        <div
           key={s.id}
           onClick={() => onFlyTo(s)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-700/50 transition-colors group"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-700/50 transition-colors group cursor-pointer"
         >
           <span
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -119,76 +124,149 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick }) {
           }`}>
             {s.is_public ? 'PUB' : 'PRV'}
           </span>
-        </button>
+          {s.share_token && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                const url = `${window.location.origin}?spot=${s.share_token}`
+                shareOrCopy(url, s.name, e.currentTarget)
+              }}
+              className="p-1 text-gray-500 hover:text-orange-400 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              title="Share spot"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+              </svg>
+            </button>
+          )}
+        </div>
       ))}
     </div>
   )
 }
 
 // --- Layers ---
-function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage, showFires, onToggleFires }) {
+function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggleSpots, showCellCoverage, onToggleCellCoverage, showFires, onToggleFires, show3DTerrain, onToggle3DTerrain }) {
   return (
-    <div className="mt-2 space-y-5">
-      <div className="space-y-2">
-        <Toggle label="Public Lands" checked={showPublicLands} onChange={onTogglePublicLands} color="bg-yellow-500" />
-        <Toggle label="User Spots" checked={showSpots} onChange={onToggleSpots} color="bg-orange-500" />
-        <Toggle label="Cell Coverage" checked={showCellCoverage} onChange={onToggleCellCoverage} color="bg-blue-500" />
-        <Toggle label="Active Fires" checked={showFires} onChange={onToggleFires} color="bg-red-500" />
-      </div>
-
-      <div>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Public Lands</h3>
-        <div className="space-y-1.5 text-sm">
+    <div className="mt-1 space-y-1.5">
+      <LayerCard
+        label="Public Lands"
+        desc="BLM, USFS, NPS & more"
+        checked={showPublicLands}
+        onChange={onTogglePublicLands}
+        color="bg-yellow-500"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15" /></svg>}
+      >
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
           <LegendItem color="#e6b428" label="BLM" />
-          <LegendItem color="#32a03c" label="USFS" />
-          <LegendItem color="#78be3c" label="NPS" />
-          <LegendItem color="#32a03c" label="FWS" />
+          <LegendItem color="#228b22" label="USFS" />
+          <LegendItem color="#644628" label="NPS" />
+          <LegendItem color="#32b4b4" label="FWS" />
           <LegendItem color="#b45050" label="DOD" />
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Campsites</h3>
-          <LegendItem color="#f97316" label="User Submitted" circle />
-          <LegendItem color="#22c55e" label="OSM Community" circle />
-          <LegendItem color="#3b82f6" label="Recreation.gov (Federal)" circle />
-          <LegendItem color="#a855f7" label="USFS Official" circle />
-          <LegendItem color="#14b8a6" label="National Park (NPS)" circle />
+      </LayerCard>
+
+      <LayerCard
+        label="Campsites"
+        desc="User, OSM, federal & USFS"
+        checked={showSpots}
+        onChange={onToggleSpots}
+        color="bg-orange-500"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>}
+      >
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <LegendItem color="#f97316" label="User" circle />
+          <LegendItem color="#22c55e" label="OSM" circle />
+          <LegendItem color="#3b82f6" label="Rec.gov" circle />
+          <LegendItem color="#a855f7" label="USFS" circle />
+          <LegendItem color="#14b8a6" label="NPS" circle />
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Cell Coverage (FCC)</h3>
-          <LegendItem color="#1e40af" label="5G (35/3 Mbps)" />
-          <LegendItem color="#60a5fa" label="5G (7/1 Mbps)" />
+      </LayerCard>
+
+      <LayerCard
+        label="Cell Coverage"
+        desc="FCC broadband data"
+        checked={showCellCoverage}
+        onChange={onToggleCellCoverage}
+        color="bg-blue-500"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.348 14.652a3.75 3.75 0 010-5.304m5.304 0a3.75 3.75 0 010 5.304m-7.425 2.121a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>}
+      >
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <LegendItem color="#1e40af" label="5G Fast" />
+          <LegendItem color="#60a5fa" label="5G" />
           <LegendItem color="#5eead4" label="4G LTE" />
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Wildfires (NIFC)</h3>
-          <LegendItem color="#ef4444" label="Fire Perimeter" />
+      </LayerCard>
+
+      <LayerCard
+        label="Active Fires"
+        desc="NIFC live wildfire data"
+        checked={showFires}
+        onChange={onToggleFires}
+        color="bg-red-500"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.468 5.99 5.99 0 00-1.925 3.547 5.975 5.975 0 01-2.133-1.001A3.75 3.75 0 0012 18z" /></svg>}
+      >
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <LegendItem color="#ef4444" label="Perimeter" />
           <LegendItem color="#f97316" label="Wildfire" circle />
-          <LegendItem color="#fbbf24" label="Prescribed Burn" circle />
+          <LegendItem color="#fbbf24" label="Prescribed" circle />
         </div>
-      </div>
+      </LayerCard>
+
+      <LayerCard
+        label="3D Terrain"
+        desc="Elevation & hillshade"
+        checked={show3DTerrain}
+        onChange={onToggle3DTerrain}
+        color="bg-emerald-500"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2 22L8.5 9l4.5 8 3-4 6 9H2z" /></svg>}
+      />
     </div>
   )
 }
 
-function Toggle({ label, checked, onChange, color }) {
+function LayerCard({ label, desc, checked, onChange, color, icon, children }) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer">
-      <div
-        className={`relative w-10 h-5 rounded-full transition-colors ${checked ? color : 'bg-gray-600'}`}
-        onClick={onChange}
-      >
-        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
+    <div
+      className={`rounded-lg border transition-colors cursor-pointer ${
+        checked
+          ? 'bg-gray-700/50 border-gray-600'
+          : 'bg-gray-800/30 border-gray-700/50'
+      }`}
+      onClick={onChange}
+    >
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+          checked ? 'bg-gray-600/60 text-gray-200' : 'bg-gray-700/40 text-gray-500'
+        }`}>
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className={`text-sm font-medium transition-colors ${checked ? 'text-gray-100' : 'text-gray-400'}`}>{label}</div>
+          {desc && <div className="text-[11px] text-gray-500 leading-tight">{desc}</div>}
+        </div>
+        <div
+          className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${checked ? color : 'bg-gray-600'}`}
+        >
+          <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
+        </div>
       </div>
-      <span className="text-sm text-gray-300">{label}</span>
-    </label>
+      {checked && children && (
+        <div className="px-3 pb-2.5 pt-0" onClick={(e) => e.stopPropagation()}>
+          <div className="pt-2 border-t border-gray-600/50 text-[11px]">
+            {children}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
 function LegendItem({ color, label, circle }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <div
-        className={circle ? 'w-3 h-3 rounded-full' : 'w-4 h-3 rounded-sm'}
+        className={circle ? 'w-2.5 h-2.5 rounded-full' : 'w-3.5 h-2.5 rounded-sm'}
         style={{ backgroundColor: color, opacity: circle ? 1 : 0.6, border: `1px solid ${color}` }}
       />
       <span className="text-gray-400">{label}</span>
