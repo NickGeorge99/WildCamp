@@ -209,6 +209,73 @@ export default function Map({
     }
   }
 
+  function buildPopupHTML(props, { isOwner, isLoggedIn }) {
+    const srcColor = SOURCE_COLORS[props.source] || '#9ca3af'
+    const srcLabel = SOURCE_LABELS[props.source] || props.source
+    const vehicleLabel = { any: 'Any Vehicle', '4wd': '4WD Required', 'hike-in': 'Hike-in Only' }
+    const coords = `${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}`
+    const images = props.images || []
+
+    // Photo carousel
+    let carouselHtml = ''
+    if (images.length > 0) {
+      const badge = `<div class="wc-carousel-badge">${ICON.camera} ${images.length} Photo${images.length > 1 ? 's' : ''}</div>`
+      const dots = images.length > 1
+        ? `<div class="wc-carousel-dots">${images.map((_, i) => `<span class="wc-dot${i === 0 ? ' wc-dot-active' : ''}" data-dot="${i}"></span>`).join('')}</div>`
+        : ''
+      const prevBtn = images.length > 1 ? `<button class="wc-carousel-arrow wc-carousel-prev">${ICON.chevronL}</button>` : ''
+      const nextBtn = images.length > 1 ? `<button class="wc-carousel-arrow wc-carousel-next">${ICON.chevronR}</button>` : ''
+      carouselHtml = `<div class="wc-carousel" data-index="0">
+        <div class="wc-carousel-track">${images.map((u, i) =>
+          `<img src="${u}" alt="" class="wc-carousel-img" data-photo-index="${i}" />`
+        ).join('')}</div>
+        ${prevBtn}${nextBtn}${badge}${dots}
+        ${isOwner ? `<button class="wc-carousel-remove" title="Remove photo">&times;</button>` : ''}
+      </div>`
+    }
+
+    // Meta line
+    let metaHtml = ''
+    if (props.source === 'user') {
+      const veh = vehicleLabel[props.category] || vehicleLabel[props.vehicle_type] || props.category || 'Any Vehicle'
+      const visIcon = props.is_public ? ICON.globe : ICON.lock
+      const visLabel = props.is_public ? 'Public' : 'Private'
+      metaHtml = `<div class="wc-popup-meta">${ICON.vehicle}<span>${veh}</span><span class="wc-meta-sep">·</span>${visIcon}<span>${visLabel}</span></div>`
+    } else if (props.category) {
+      metaHtml = `<div class="wc-popup-meta">${ICON.vehicle}<span>${props.category}</span></div>`
+    }
+
+    // Buttons
+    const saveRow = props.source !== 'user'
+      ? `<button id="wc-save-spot" class="wc-btn-save">${ICON.pin}<span>Save to Waypoints</span></button>`
+      : ''
+    const shareBtn = props.share_token
+      ? `<button id="wc-share-spot" class="wc-btn-sec">${ICON.share}<span>Share</span></button>`
+      : ''
+    const editBtn = isOwner
+      ? `<button id="wc-edit-spot" class="wc-btn-sec">${ICON.edit}<span>Edit</span></button>`
+      : ''
+    const addPhotoBtn = isLoggedIn
+      ? `<button id="wc-add-photo" class="wc-btn-sec">${ICON.camera}<span>Add Photo</span></button>`
+      : ''
+
+    const secondaryBtns = [editBtn, addPhotoBtn, shareBtn].filter(Boolean).join('')
+
+    return `<div class="wc-popup">
+      ${carouselHtml}
+      <div class="wc-popup-body">
+        <div class="wc-popup-tags"><span class="wc-tag" style="background:${srcColor}">${srcLabel}</span></div>
+        <div class="wc-popup-name">${props.name}</div>
+        ${metaHtml}
+        ${props.notes ? `<div class="wc-popup-notes">${props.notes}</div>` : ''}
+        <div id="wc-coords" class="wc-popup-coords">${ICON.pinSmall}<span>${coords}</span></div>
+        <a href="${getNavUrl(props.lat, props.lng)}" target="_blank" rel="noopener" class="wc-btn-navigate">${ICON.navigate}<span>Navigate</span></a>
+        ${saveRow}
+        ${secondaryBtns ? `<div class="wc-popup-secondary">${secondaryBtns}</div>` : ''}
+      </div>
+    </div>`
+  }
+
   async function handlePhotoInput(e) {
     const files = Array.from(e.target.files)
     if (!files.length) return
@@ -746,74 +813,6 @@ export default function Map({
       map.on('moveend', fetchLandLabels)
       fetchLandLabels()
     })
-
-    // Popup helper
-    function buildPopupHTML(props, { isOwner, isLoggedIn }) {
-      const srcColor = SOURCE_COLORS[props.source] || '#9ca3af'
-      const srcLabel = SOURCE_LABELS[props.source] || props.source
-      const vehicleLabel = { any: 'Any Vehicle', '4wd': '4WD Required', 'hike-in': 'Hike-in Only' }
-      const coords = `${props.lat.toFixed(5)}, ${props.lng.toFixed(5)}`
-      const images = props.images || []
-
-      // Photo carousel
-      let carouselHtml = ''
-      if (images.length > 0) {
-        const badge = `<div class="wc-carousel-badge">${ICON.camera} ${images.length} Photo${images.length > 1 ? 's' : ''}</div>`
-        const dots = images.length > 1
-          ? `<div class="wc-carousel-dots">${images.map((_, i) => `<span class="wc-dot${i === 0 ? ' wc-dot-active' : ''}" data-dot="${i}"></span>`).join('')}</div>`
-          : ''
-        const prevBtn = images.length > 1 ? `<button class="wc-carousel-arrow wc-carousel-prev">${ICON.chevronL}</button>` : ''
-        const nextBtn = images.length > 1 ? `<button class="wc-carousel-arrow wc-carousel-next">${ICON.chevronR}</button>` : ''
-        carouselHtml = `<div class="wc-carousel" data-index="0">
-          <div class="wc-carousel-track">${images.map((u, i) =>
-            `<img src="${u}" alt="" class="wc-carousel-img" data-photo-index="${i}" />`
-          ).join('')}</div>
-          ${prevBtn}${nextBtn}${badge}${dots}
-          ${isOwner ? `<button class="wc-carousel-remove" title="Remove photo">&times;</button>` : ''}
-        </div>`
-      }
-
-      // Meta line
-      let metaHtml = ''
-      if (props.source === 'user') {
-        const veh = vehicleLabel[props.category] || vehicleLabel[props.vehicle_type] || props.category || 'Any Vehicle'
-        const visIcon = props.is_public ? ICON.globe : ICON.lock
-        const visLabel = props.is_public ? 'Public' : 'Private'
-        metaHtml = `<div class="wc-popup-meta">${ICON.vehicle}<span>${veh}</span><span class="wc-meta-sep">·</span>${visIcon}<span>${visLabel}</span></div>`
-      } else if (props.category) {
-        metaHtml = `<div class="wc-popup-meta">${ICON.vehicle}<span>${props.category}</span></div>`
-      }
-
-      // Buttons
-      const saveRow = props.source !== 'user'
-        ? `<button id="wc-save-spot" class="wc-btn wc-btn-save">${ICON.pin}<span>Save to Waypoints</span></button>`
-        : ''
-      const shareBtn = props.share_token
-        ? `<button id="wc-share-spot" class="wc-btn-sec">${ICON.share}<span>Share</span></button>`
-        : ''
-      const editBtn = isOwner
-        ? `<button id="wc-edit-spot" class="wc-btn-sec">${ICON.edit}<span>Edit</span></button>`
-        : ''
-      const addPhotoBtn = isLoggedIn
-        ? `<button id="wc-add-photo" class="wc-btn-sec">${ICON.camera}<span>Add Photo</span></button>`
-        : ''
-
-      const secondaryBtns = [editBtn, addPhotoBtn, shareBtn].filter(Boolean).join('')
-
-      return `<div class="wc-popup">
-        ${carouselHtml}
-        <div class="wc-popup-body">
-          <div class="wc-popup-tags"><span class="wc-tag" style="background:${srcColor}">${srcLabel}</span></div>
-          <div class="wc-popup-name">${props.name}</div>
-          ${metaHtml}
-          ${props.notes ? `<div class="wc-popup-notes">${props.notes}</div>` : ''}
-          <div id="wc-coords" class="wc-popup-coords">${ICON.pinSmall}<span>${coords}</span></div>
-          <a href="${getNavUrl(props.lat, props.lng)}" target="_blank" rel="noopener" class="wc-btn-navigate">${ICON.navigate}<span>Navigate</span></a>
-          ${saveRow}
-          ${secondaryBtns ? `<div class="wc-popup-secondary">${secondaryBtns}</div>` : ''}
-        </div>
-      </div>`
-    }
 
     function showPopup(m, lngLat, props) {
       if (popupRef.current) popupRef.current.remove()
