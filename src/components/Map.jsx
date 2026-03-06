@@ -188,17 +188,33 @@ export default function Map({
           },
           layout: { visibility: 'none' },
         })
-        // Fire incident points
+        // Wildfire points (WF) — orange/red
         map.addLayer({
-          id: 'fire-points-layer',
+          id: 'fire-points-wf',
           type: 'circle',
           source: 'fire-points',
+          filter: ['==', ['get', 'type'], 'WF'],
           paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 10, 8],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 5, 10, 9],
             'circle-color': '#f97316',
             'circle-stroke-color': '#dc2626',
             'circle-stroke-width': 2,
             'circle-opacity': 0.9,
+          },
+          layout: { visibility: 'none' },
+        })
+        // Prescribed burn points (RX) — yellow
+        map.addLayer({
+          id: 'fire-points-rx',
+          type: 'circle',
+          source: 'fire-points',
+          filter: ['==', ['get', 'type'], 'RX'],
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 10, 7],
+            'circle-color': '#fbbf24',
+            'circle-stroke-color': '#d97706',
+            'circle-stroke-width': 1.5,
+            'circle-opacity': 0.85,
           },
           layout: { visibility: 'none' },
         })
@@ -216,18 +232,22 @@ export default function Map({
             visibility: 'none',
           },
           paint: {
-            'text-color': '#fca5a5',
+            'text-color': ['match', ['get', 'type'], 'RX', '#fde68a', '#fca5a5'],
             'text-halo-color': 'rgba(0,0,0,0.8)',
             'text-halo-width': 1.5,
           },
         })
 
         // Click fire points for info
-        map.on('click', 'fire-points-layer', (e) => {
+        function onFireClick(e) {
           if (e.features.length > 0) {
             const props = e.features[0].properties
+            const isRx = props.type === 'RX'
             const acres = props.acres ? `${Number(props.acres).toLocaleString()} acres` : 'Size unknown'
             const contained = props.contained != null ? `${props.contained}% contained` : ''
+            const badgeColor = isRx ? '#d97706' : '#dc2626'
+            const badgeText = isRx ? 'Prescribed Burn' : 'Wildfire'
+            const nameColor = isRx ? '#fde68a' : '#fca5a5'
             if (popupRef.current) popupRef.current.remove()
             popupRef.current = new maplibregl.Popup({
               closeButton: true,
@@ -237,9 +257,9 @@ export default function Map({
               .setLngLat(e.lngLat)
               .setHTML(
                 `<div style="padding:8px">
-                  <strong style="font-size:14px;color:#fca5a5">${props.name || 'Unknown Fire'}</strong>
+                  <strong style="font-size:14px;color:${nameColor}">${props.name || 'Unknown'}</strong>
                   <div style="margin-top:4px;display:flex;gap:8px;align-items:center;font-size:12px">
-                    <span style="background:#dc2626;color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">Active Fire</span>
+                    <span style="background:${badgeColor};color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${badgeText}</span>
                     <span style="color:#9ca3af">${acres}</span>
                   </div>
                   ${contained ? `<div style="margin-top:4px;font-size:12px;color:#9ca3af">${contained}</div>` : ''}
@@ -248,9 +268,13 @@ export default function Map({
               .addTo(map)
             e.preventDefault()
           }
-        })
-        map.on('mouseenter', 'fire-points-layer', () => { map.getCanvas().style.cursor = 'pointer' })
-        map.on('mouseleave', 'fire-points-layer', () => { map.getCanvas().style.cursor = '' })
+        }
+        map.on('click', 'fire-points-wf', onFireClick)
+        map.on('click', 'fire-points-rx', onFireClick)
+        for (const id of ['fire-points-wf', 'fire-points-rx']) {
+          map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer' })
+          map.on('mouseleave', id, () => { map.getCanvas().style.cursor = '' })
+        }
 
         // Fetch fire data
         fetchFireData(map)
@@ -472,7 +496,7 @@ export default function Map({
       try {
         const params = new URLSearchParams({
           where: '1=1',
-          outFields: 'IncidentName,DailyAcres,PercentContained',
+          outFields: 'IncidentName,DailyAcres,PercentContained,IncidentTypeCategory',
           outSR: '4326',
           f: 'json',
           resultRecordCount: '2000',
@@ -496,6 +520,7 @@ export default function Map({
                   name: f.attributes.IncidentName || 'Unknown',
                   acres: f.attributes.DailyAcres,
                   contained: f.attributes.PercentContained,
+                  type: f.attributes.IncidentTypeCategory || 'WF',
                 },
               })),
           }
@@ -578,7 +603,7 @@ export default function Map({
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
     const vis = showFires ? 'visible' : 'none'
-    for (const id of ['fire-perimeters-fill', 'fire-perimeters-line', 'fire-points-layer', 'fire-labels']) {
+    for (const id of ['fire-perimeters-fill', 'fire-perimeters-line', 'fire-points-wf', 'fire-points-rx', 'fire-labels']) {
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
     }
   }, [showFires])

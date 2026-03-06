@@ -162,7 +162,8 @@ function LayersPanel({ showPublicLands, onTogglePublicLands, showSpots, onToggle
         <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-sm">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Wildfires (NIFC)</h3>
           <LegendItem color="#ef4444" label="Fire Perimeter" />
-          <LegendItem color="#f97316" label="Fire Incident" circle />
+          <LegendItem color="#f97316" label="Wildfire" circle />
+          <LegendItem color="#fbbf24" label="Prescribed Burn" circle />
         </div>
       </div>
     </div>
