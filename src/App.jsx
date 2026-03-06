@@ -201,7 +201,8 @@ export default function App() {
         .single()
       if (refreshed) {
         setSpots((prev) => prev.map((s) => (s.id === spotId ? refreshed : s)))
-        if (selectedSpot?.id === spotId) setSelectedSpot({ ...refreshed })
+        // Always update selectedSpot so the popup rebuilds with the new photo
+        setSelectedSpot({ ...refreshed })
       }
     }
   }

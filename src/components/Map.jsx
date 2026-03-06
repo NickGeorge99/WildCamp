@@ -776,7 +776,6 @@ export default function Map({
               <span class="wc-tag" style="background:${srcColor}">${srcLabel}</span>
               ${meta}
             </div>
-            ${imgHtml}
             <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
             ${props.notes ? `<div class="wc-popup-notes">${props.notes}</div>` : ''}
             ${saveRow}
@@ -786,6 +785,7 @@ export default function Map({
               ${addPhotoBtn}
               ${shareBtn}
             </div>
+            ${imgHtml}
           </div>`
         )
         .addTo(m)
@@ -1111,7 +1111,6 @@ export default function Map({
             <span class="wc-meta">${vehicleLabel[selectedSpot.vehicle_type] || selectedSpot.vehicle_type}</span>
             <span class="wc-meta ${visClass}">${visLabel}</span>
           </div>
-          ${imgHtml}
           <div id="wc-coords" class="wc-popup-coords">${ICON.copy}<span>${coords}</span></div>
           ${selectedSpot.notes ? `<div class="wc-popup-notes">${selectedSpot.notes}</div>` : ''}
           <div class="wc-popup-actions">
@@ -1120,6 +1119,7 @@ export default function Map({
             ${addPhotoBtn}
             ${shareBtn}
           </div>
+          ${imgHtml}
         </div>`
       )
       .addTo(mapRef.current)
