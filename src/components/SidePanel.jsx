@@ -19,6 +19,7 @@ export default function SidePanel({
   onSearch,
   onFlyToSpot,
   onLoginClick,
+  onDeleteSpot,
 }) {
   if (!activePanel) return null
 
@@ -51,7 +52,7 @@ export default function SidePanel({
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {activePanel === 'waypoints' && (
-            <WaypointsPanel spots={spots} user={user} onFlyTo={onFlyToSpot} onLoginClick={onLoginClick} />
+            <WaypointsPanel spots={spots} user={user} onFlyTo={onFlyToSpot} onLoginClick={onLoginClick} onDelete={onDeleteSpot} />
           )}
           {activePanel === 'layers' && (
             <LayersPanel
@@ -77,7 +78,7 @@ export default function SidePanel({
 }
 
 // --- Waypoints ---
-function WaypointsPanel({ spots, user, onFlyTo, onLoginClick }) {
+function WaypointsPanel({ spots, user, onFlyTo, onLoginClick, onDelete }) {
   if (!user) {
     return (
       <div className="mt-4 text-center">
@@ -139,6 +140,18 @@ function WaypointsPanel({ spots, user, onFlyTo, onLoginClick }) {
               </svg>
             </button>
           )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(s.id)
+            }}
+            className="p-1 text-gray-500 hover:text-red-400 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            title="Remove waypoint"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       ))}
     </div>

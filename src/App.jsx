@@ -250,6 +250,7 @@ export default function App() {
         onSearch={handleSearch}
         onFlyToSpot={handleFlyToSpot}
         onLoginClick={() => setShowAuth(true)}
+        onDeleteSpot={handleDeleteSpot}
       />
 
       <div className="map-container flex-1 relative">
