@@ -1,7 +1,7 @@
 ---
 title: "Top National Forest Camping Spots in Colorado"
 slug: "top-national-forest-camping-colorado"
-description: "Find the best free dispersed camping in Colorado's national forests. From alpine lakes to mountain meadows, explore top spots across the Rockies."
+description: "Find the best free dispersed camping in Colorado's national forests. From alpine lakes to mountain meadows, explore the top spots across the Rockies."
 date: "2026-03-08"
 tags: ["dispersed camping", "Colorado", "national forest", "free camping", "Rocky Mountains"]
 heroImage: ""
