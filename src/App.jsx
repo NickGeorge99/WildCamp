@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import IconSidebar from './components/IconSidebar'
 import SidePanel from './components/SidePanel'
 import Map from './components/Map'
@@ -6,6 +7,8 @@ import AddSpotModal from './components/AddSpotModal'
 import EditSpotModal from './components/EditSpotModal'
 import PhotoViewer from './components/PhotoViewer'
 import AuthModal from './components/AuthModal'
+import BlogIndex from './blog/BlogIndex'
+import BlogPost from './blog/BlogPost'
 import { supabase } from './lib/supabase'
 
 export default function App() {
@@ -244,6 +247,10 @@ export default function App() {
   }
 
   return (
+    <Routes>
+      <Route path="/blog" element={<BlogIndex />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/*" element={
     <div className="app-layout">
       <IconSidebar
         activePanel={activePanel}
@@ -338,5 +345,7 @@ export default function App() {
         />
       )}
     </div>
+      } />
+    </Routes>
   )
 }
