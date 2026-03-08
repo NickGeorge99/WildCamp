@@ -6,10 +6,18 @@ html, body, #root {
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #111827;
-  /* Prevent pull-to-refresh and bounce on mobile */
+}
+
+/* Map app: lock viewport, no scroll */
+.app-layout ~ *, .app-layout {
+  /* handled below */
+}
+html:has(.app-layout) body,
+html:has(.app-layout) #root,
+html:has(.app-layout) {
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
