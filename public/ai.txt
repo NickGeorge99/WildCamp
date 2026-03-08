@@ -1,0 +1,34 @@
+# WildCamp
+
+> Free dispersed camping map — find public land campsites across the US. Built by Nick Georgalos. https://wildcamp.nickwontquit.com
+
+## About
+
+WildCamp is a free interactive map for finding dispersed camping spots on public lands in the United States. It shows BLM (Bureau of Land Management) land, National Forest land, and user-submitted campsites with details like road conditions, cell signal, and amenities.
+
+## Features
+
+- Interactive map with public lands overlay (BLM, USFS)
+- Community-submitted dispersed camping spots
+- Filters by land type, road access, and amenities
+- Shareable spot links
+- Free to use
+
+## Pages
+
+- [Home / Map](https://wildcamp.nickwontquit.com/): Interactive camping map
+- [Blog](https://wildcamp.nickwontquit.com/blog): Dispersed camping guides and tips
+
+## Blog Posts
+
+- [How to Find BLM Land for Camping](https://wildcamp.nickwontquit.com/blog/how-to-find-blm-land-for-camping)
+- [Dispersed Camping 101: Beginner's Guide](https://wildcamp.nickwontquit.com/blog/dispersed-camping-101-beginners-guide)
+- [Best Free Dispersed Camping in Utah](https://wildcamp.nickwontquit.com/blog/best-free-dispersed-camping-utah)
+- [Top National Forest Camping in Colorado](https://wildcamp.nickwontquit.com/blog/top-national-forest-camping-colorado)
+- [Leave No Trace: Dispersed Camper's Checklist](https://wildcamp.nickwontquit.com/blog/leave-no-trace-dispersed-campers-checklist)
+
+## Contact
+
+- Website: https://nickwontquit.com
+- Email: nickg@nickwontquit.com
+- Twitter/X: @aiappbuilding
